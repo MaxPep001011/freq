@@ -1,4 +1,4 @@
-from gclass import Profile, State
+from fclass import Profile, State
 import fcrypto
 import fui
 

@@ -1,4 +1,4 @@
-from gclass import State, Profile
+from fclass import State, Profile
 import fcrypto
 import fconn
 import fui
@@ -27,12 +27,12 @@ def room_info(profile: Profile, state: State, rname):
         return
     for name, url in profile.rooms:
         if name == rname:
-            fui.printBuff(f"ABOUT '{fui.color(rname,'blue')}':", state.screenBuffer)
-            fui.printBuff(f" {fui.color('URL:','gray')}{url}", state.screenBuffer)
+            fui.printBuff(f"ROOM {fui.color(rname,'blue')}:", state.screenBuffer)
+            fui.printBuff(f" URL:{url}", state.screenBuffer)
             if state.connStatus:
                 whoHere(profile, state)
             else:
-                fui.printBuff(" " + fui.color("DISCONNECTED","red"), state.screenBuffer)
+                fui.printBuff(" " + fui.color("NOT CONNECTED","red"), state.screenBuffer)
             return
     fui.printBuffCmt(f"[-] '{rname}' not found", state.screenBuffer)
 def room_set(rname, profile: Profile, state: State):
@@ -247,7 +247,7 @@ def blockkey(ident: str, profile: Profile, state: State):
         if len(ident) > 32:
             #prolly fp
             fps = [ident]
-            label = ident[:16] + ".."
+            label = ident[:8] + ".."
         else:
             fui.printBuffCmt(f"[-] '{ident}' is not an alias or valid fingerprint", state.screenBuffer)
             return
@@ -258,7 +258,7 @@ def blockkey(ident: str, profile: Profile, state: State):
         profile.msgBlacklist.add(fp)
         profile.fileBlacklist.add(fp)
 
-    fui.printBuffCmt(f"[+] blocked '{label}' ({len(fps)} key(s))", state.screenBuffer)
+    fui.printBuffCmt(f"[+] blocked '{fui.color(label,fui.get_identity_color(label, state.server_peers, profile))}\033[90m' ({len(fps)} keys)", state.screenBuffer)
 def unblockkey(ident: str, profile: Profile, state: State):
     """
     Unblock a fingerprint or all fingerprints tied to an alias.
@@ -271,7 +271,7 @@ def unblockkey(ident: str, profile: Profile, state: State):
     else:
         if len(ident) > 32:
             fps = [ident]
-            label = ident[:16] + ".."
+            label = ident[:8] + ".."
         else:
             fui.printBuffCmt(f"[-] '{ident}' is not an alias or valid fingerprint", state.screenBuffer)
             return
@@ -285,13 +285,16 @@ def unblockkey(ident: str, profile: Profile, state: State):
             profile.fileBlacklist.remove(fp)
             removed = True
     if removed:
-        fui.printBuffCmt(f"[+] unblocked '{label}' ({len(fps)} key(s))", state.screenBuffer)
+        fui.printBuffCmt(f"[+] unblocked '{fui.color(label,fui.get_identity_color(label, state.server_peers, profile))}\033[90m' ({len(fps)} keys)", state.screenBuffer)
     else:
         fui.printBuffCmt(f"[-] '{label}' not blocked", state.screenBuffer)
 
 def changeNN(newName, profile: Profile, state: State):
     if "@" not in newName:
-        profile.nickname = newName
+        if newName not in profile.aliases.items():
+            profile.nickname = newName
+        else:
+            fui.printBuffCmt("[-] Nickname cannot match alias", state.screenBuffer)
     else:
         fui.printBuffCmt("[-] Nickname cannot have '@'", state.screenBuffer)
 def chgfingerprint(newFingerprint, profile: Profile, state: State):
@@ -376,12 +379,10 @@ def chgPolicyLists(msgType, ident, action, profile: Profile, state: State):
     action: "allow" or "deny"
     ident: fingerprint (>32 chars) or alias (resolve to one or more fingerprints)
     """
-
     if msgType == "file":
         whitelist, blacklist = profile.fileWhitelist, profile.fileBlacklist
     else:
         whitelist, blacklist = profile.msgWhitelist, profile.msgBlacklist
-
     fps = []
     if len(ident) > 32:  
         #raw fp
@@ -390,31 +391,28 @@ def chgPolicyLists(msgType, ident, action, profile: Profile, state: State):
         for name, fprints in profile.aliases.items():
             if name == ident:
                 fps.extend(fprints)
-
-
     if not fps:
         print(f"[-] No valid fingerprints found for '{ident}'.")
         return
-
     for fp in fps:
         if action in ("allow","a"):
             if fp in blacklist:
                 blacklist.remove(fp)
             if fp not in whitelist:
                 whitelist.add(fp)
-                fui.printBuffCmt(f"[+] {fp[:16]}.. added to {msgType} whitelist", state.screenBuffer)
+                fui.printBuffCmt(f"[+] {fp[:8]}.. added to {msgType} whitelist", state.screenBuffer)
             else:
-                fui.printBuffCmt(f"[-] {fp[:16]}.. alr on {msgType} whitelist", state.screenBuffer)
+                fui.printBuffCmt(f"[-] {fp[:8]}.. alr on {msgType} whitelist", state.screenBuffer)
         elif action in ("deny","d"):
             if fp in whitelist:
                 whitelist.remove(fp)
             if fp not in blacklist:
                 blacklist.add(fp)
-                fui.printBuffCmt(f"[+] {fp[:16]}.. added to {msgType} blacklist", state.screenBuffer)
+                fui.printBuffCmt(f"[+] {fp[:8]}.. added to {msgType} blacklist", state.screenBuffer)
             else:
-                fui.printBuffCmt(f"[-] {fp[:16]}.. alr on {msgType} blacklist", state.screenBuffer)
+                fui.printBuffCmt(f"[-] {fp[:8]}.. alr on {msgType} blacklist", state.screenBuffer)
         else:
-            print(f"[!]!!!!!!!!!!! Unknown action: {action}")
+            fui.printBuffCmt(f"[i] Usage: policy {msgType} {ident} allow|deny", state.screenBuffer)
 def bufferPolicyInfo(profile: Profile, state: State):
     msgColor = ""
     fileColor = ""
@@ -451,17 +449,12 @@ def chgTorProxy(ipport, profile: Profile, state: State):
     try:
         if ':' not in ipport:
             raise ValueError("VALUE ERROR")
-
         parts = ipport.split(':')
-        
         ip = parts[0]
         port = parts[1]
-        
         profile.torProxyIP = ip
-        profile.torProxyPort = port
-        
+        profile.torProxyPort = int(port)
         fui.printBuffCmt(f"[+] Changed socks5 proxy to '{ip}:{port}'", state.screenBuffer)
-        
     except ValueError as e:
         #formatting wrong
         fui.printBuffCmt(f"[-] Usage: tor proxy <ip:port> (default: 127.0.0.1:9050)", state.screenBuffer)
@@ -471,7 +464,6 @@ def chgTorProxy(ipport, profile: Profile, state: State):
 def printTorStat(profile: Profile, state: State):
     fui.printBuff(fui.color("TOR", 'purple') + " PROXY:", state.screenBuffer)
     fui.printBuff(f" Address:{profile.torProxyIP}:{profile.torProxyPort}", state.screenBuffer)
-    
     if fconn.is_tor_running(profile.torProxyIP, profile.torProxyPort):
         if state.connStatus:
             fui.printBuff(" Status:" + fui.color("Connected","purple"), state.screenBuffer)
@@ -534,7 +526,7 @@ def chgDir(profile: Profile, state: State, Dtype, directory=""):
     if directory == "":
         if Dtype == "d":
             profile.defDdir = ""
-            fui.printBuffCmt(f"[+] Using local directory for downloads", state.screenBuffer)
+            fui.printBuffCmt(f"[+] Using default directory for downloads (~/Downloads/<room>/)", state.screenBuffer)
             return
 
     if not os.path.isdir(directory):
@@ -595,7 +587,10 @@ def load_config(profile: Profile, state: State, filepath: str=""):
     if not os.path.exists(filepath):
         fui.printBuffCmt(f"[-] Config file not found at '{filepath}'", state.screenBuffer)
         return
-
+    fui.printBuffCmt(f"[+] Loading settings from '{filepath}'...", state.screenBuffer)
+    if state.connStatus:
+        fui.printBuffCmt(f"[+] Dropping connections..", state.screenBuffer)
+        room_leave(profile, state)
     try:
         with open(filepath, 'r') as f:
             config_data = json.load(f)
@@ -640,12 +635,12 @@ def load_config(profile: Profile, state: State, filepath: str=""):
         fui.printBuffCmt(f"[-] Error loading settings: {e}", state.screenBuffer)
 
 def reset_settings(profile: Profile, state: State):
-    fui.printBuffCmt("[i] Resetting settings...\n[i] Dropping connections...", state.screenBuffer)
-
-    room_leave(state)
-    profile = Profile()
-
-    fui.printBuffCmt("[+] Settings reset to default", state.screenBuffer)
+    fui.printBuffCmt("[+] Resetting settings...", state.screenBuffer)
+    if state.connStatus:
+        fui.printBuffCmt(f"[+] Dropping connections..", state.screenBuffer)
+        room_leave(profile, state)
+    blank_p = Profile()
+    return blank_p
 
 def buffer_current_settings(profile: Profile, state: State, praw=0):
     if praw:
@@ -682,11 +677,11 @@ def buffer_current_settings(profile: Profile, state: State, praw=0):
         fui.printBuff(f"---- EOS -----", state.screenBuffer)
     else:
         fui.printBuff(f"ACTIVE SETTINGS:", state.screenBuffer)
-        buffer_ident(profile)
+        buffer_ident(profile, state)
         fui.printBuff("SOCKS5:" + fui.color(profile.torProxyIP + ":" + str(profile.torProxyPort),"purple"), state.screenBuffer)
         fui.printBuff(f"ROOMS:{len(profile.rooms)}", state.screenBuffer)
         fui.printBuff(f"ALIASES:{len(profile.aliases)}", state.screenBuffer)
-        bufferPolicyInfo(profile)
+        bufferPolicyInfo(profile, state)
 
 def buffer_file_settings(state: State, path):
     #raw only
@@ -702,6 +697,7 @@ def buffer_file_settings(state: State, path):
 def buffer_version_menu(state: State, version):
     #just print banner for now
     fui.bufferBanner(state.screenBuffer, version)
+    fui.printBuff("SRC: " + fui.color("https://github.com/MaxPep001011/freq","blue"), state.screenBuffer)
 
 ###   MESSAGING
 def send_message_to_aliases(profile: Profile, state: State, raw_msg):
@@ -746,12 +742,12 @@ def send_direct_message_to_alias(profile: Profile, state: State, alias: str, raw
             target_fps = [alias]
 
         if not target_fps:
-            if fcrypto.check_gpg_key(alias):
+            if fcrypto.check_gpg_key(alias) > 0:
                 #pubkey but no alias
                 target_fps.append(alias)
             else:
                 fui.printBuffCmt(f"[-] No key found for '{alias}'", state.screenBuffer)
-            return
+                return
 
         #send to each fp online
         for fpr in target_fps:
@@ -784,7 +780,7 @@ def send_direct_file_to_alias(profile: Profile, state: State, alias: str, raw_pa
             target_fps = [alias]
 
         if not target_fps:
-            if fcrypto.check_gpg_key(alias):
+            if fcrypto.check_gpg_key(alias) > 0:
                 #pubkey but no alias
                 target_fps.append(alias)
             else:

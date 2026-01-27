@@ -1,4 +1,4 @@
-from gclass import Profile, State
+from fclass import Profile, State
 import fcrypto
 
 import readline
@@ -37,15 +37,15 @@ def updateScreen(buffer, connStatus, nickname, currentRoom, DrawPS1):
         except OSError:
             width = 80
 
-        stat_bar = color(" FREQ", "green") + ":"
+        stat_bar = color(" FREQ", "green") + ": "
         if connStatus:
-            stat_bar += (color("Connected ", "green") + color(f"@ {currentRoom}", "blue"))
+            stat_bar += (color("\033[7m Connected ", "green") + color(f" @ {currentRoom}", "blue"))
         elif currentRoom == "":
-            stat_bar += (color("Disconnected ", "red") + "@ " + color("NONE", "gray"))
+            stat_bar += (color("\033[7m Disconnected ", "red") + " @ " + color("NONE", "gray"))
         else:
-            stat_bar += (color("Disconnected ", "red") + "@ " + color(f"{currentRoom}", "blue"))
+            stat_bar += (color("\033[7m Disconnected ", "red") + " @ " + color(f"{currentRoom}", "blue"))
         print(stat_bar)
-        print("'" * width)
+        print("\033[90m" + ("~" * width) + "\033[0m")
 
     #Get current typed input before redraw
     try:

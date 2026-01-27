@@ -17,7 +17,7 @@ ptversion = "0.70"
 #   Adjust fui.timestamp to HR:MM:SS format
 ########################################################################################################- CODE BEGIN
 
-from gclass import Profile, State
+from fclass import Profile, State
 import fcrypto
 import fcalls
 import fconn
@@ -31,7 +31,7 @@ state = State()
 
 ###   MAIN
 def main():
-
+    global activeProfile, state
     def handle_exit(sig, frame):
         #Useless for now
         sys.exit(0)
@@ -338,13 +338,13 @@ def parse_command(line):
     elif cmd in ("settings", "set"):
         if args and args[0].lower() in ("save","s"):
             if len(args) > 1:
-                fcalls.save_config(activeProfile, state, path=args[1])
+                fcalls.save_config(activeProfile, state, args[1])
             else:
                 fcalls.save_config(activeProfile, state)
         elif args and args[0].lower() in ("load","l"):
             if len(args) > 1:
                 #Load from arg
-                fcalls.load_config(activeProfile, state, filepath=args[1])
+                fcalls.load_config(activeProfile, state, args[1])
             else:
                 #Load from default
                 fcalls.load_config(activeProfile, state)
@@ -356,7 +356,7 @@ def parse_command(line):
                 if args[1].lower() in ("saved","s"):
                     config_path = fcalls.config_path()
                     fui.printBuffCmt(f"[+] Parsing '{config_path}'...", state.screenBuffer)
-                    fcalls.buffer_file_settings(config_path, state)
+                    fcalls.buffer_file_settings(state, config_path)
                 elif args[1].lower() in ("active","current","a","c"):
                     fcalls.buffer_current_settings(activeProfile, state, praw)
                 else:
@@ -364,7 +364,8 @@ def parse_command(line):
             else:
                 fui.printBuffCmt("[i] Usage: settings view saved|active [raw]", state.screenBuffer)
         elif args and args[0].lower() in ("r", "reset"):
-            fcalls.reset_settings(activeProfile, state)
+            activeProfile = fcalls.reset_settings(activeProfile, state)
+            fui.printBuffCmt("[+] Settings reset to default", state.screenBuffer)
         else:
             fui.printBuffCmt("[i] Usage: settings save|load|view|reset [<path>|saved|active] [raw]", state.screenBuffer)
 
