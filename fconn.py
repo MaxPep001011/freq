@@ -138,22 +138,20 @@ def handle_incoming(sock, room_name: str, profile: Profile, state: State):
 ### Handles and transmitters
 #0x01 (messages)
 def send_message(sock, msg: str, recipient: str, senderfp: str, arg):
-    if "DM" in arg:
-        header = {"sender": senderfp, "DM": "YES"}
     if "UE" in arg:
         #UE SHOULD ONLY BE DM
         header = {"sender": senderfp, "DM": "YES", "UE":"YES"}
+        #these for spoof testing (and for testing decrypt failure still broken)
         #header = {"sender": "A7F983289F26F629F742A35338B2FAD8B4F7E6A9", "DM": "YES", "UE":"YES"}
-    if arg == "":
+        encrypted = msg.encode()
+    elif "DM" in arg:
+        header = {"sender": senderfp, "DM": "YES"}
+        #header = {"sender": "A7F983289F26F629F742A35338B2FAD8B4F7E6A9", "DM": "YES"}
+        encrypted = fcrypto.gpg_sign_and_encrypt(msg.encode(), recipient, senderfp)
+    else:
         header = {"sender": senderfp}
         #header = {"sender": "A7F983289F26F629F742A35338B2FAD8B4F7E6A9"}
-
-    if "UE" in arg:
-        #dont encrypt just encode
-        encrypted = msg.encode()
-    else:
         encrypted = fcrypto.gpg_sign_and_encrypt(msg.encode(), recipient, senderfp)
-    
     packed = pack_message(0x01, header, recipient, encrypted)
     sock.sendall(packed)
 
@@ -167,7 +165,7 @@ def receive_signed_message(data: bytes, header: dict, profile: Profile, screenBu
         if not isUE:
             decrypted_bytes, signer_fp = fcrypto.gpg_decrypt_and_verify(data)
             if signer_fp:
-                if not determine_accept_action("msg", signer_fp, profile):
+                if not determine_accept_action("m", signer_fp, profile):
                     #Signature present (gpg decrypted) but blocked by policy
                     return
             if decrypted_bytes:
@@ -189,20 +187,20 @@ def receive_signed_message(data: bytes, header: dict, profile: Profile, screenBu
                     alias_match = alias
                     break
             if sender == signer_fp:
-                #Sig match
+                #Signed by sender
                 if alias_match:
-                    #Known + trusted signer
+                    #Signed by alias
                     fui.printBuff(f"{fui.timestamp()}{typestr}[{fui.color(alias_match, 'green')}]:{message_body}", screenBuffer)
                 else:
-                    #Signed but unknown key (for allow in firewall)
+                    #Signed by key (not alias)
                     fui.printBuff(f"{fui.timestamp()}{typestr}[{fui.color(sender[:8] + '..', 'blue')}]:{message_body}", screenBuffer)
             else:
-                #Sig mismatch (sig fp != claimed fp)
+                #Not signed by claimed sender
                 if alias_match:
                     fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(alias_match, 'yellow')}\"]:{message_body}", screenBuffer)
                 else:
                     fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(sender[:8] + '..', 'yellow')}\"]:{message_body}", screenBuffer)
-                fui.printBuff(fui.color(f"[!] Signed by different key:", "orange") + signer_fp, screenBuffer)
+                fui.printBuff(fui.color(f"[!] Signed by unexpected key:", "orange") + signer_fp, screenBuffer)
         else:
             #Not signed
             alias_match = None
@@ -235,6 +233,7 @@ def receive_signed_message(data: bytes, header: dict, profile: Profile, screenBu
 
 #0x02 (files)
 def send_file(sock, filepath: str, recipient: str, senderfp: str, arg, screenBuffer):
+    import zipfile
     try:
         isdir = False
         if os.path.isdir(filepath):
@@ -245,36 +244,27 @@ def send_file(sock, filepath: str, recipient: str, senderfp: str, arg, screenBuf
                     for file in files:
                         z.write(os.path.join(root, file), arcname=os.path.relpath(os.path.join(root, file), filepath))
             filepath = zipname  #overwrite with .zip path
-
         filename = os.path.basename(filepath.rstrip(os.sep))
-
         with open(filepath, 'rb') as f:
             raw_data = f.read()
-
         if "DM" in arg:
-            header = {"sender": senderfp,"filename": filename , "DM": "YES", "FP": senderfp}
-        if "UE" in arg:
-            header = {"sender": senderfp,"filename": filename , "DM": "YES", "FP": senderfp,"UE":"YES"}
-        if arg == "":
-            header = {"sender": senderfp,"filename": filename , "FP": senderfp}
-
-        if "UE" not in arg:
-            encrypted = fcrypto.gpg_sign_and_encrypt_binary(raw_data, recipient, senderfp)
+            header = {"sender": senderfp,"filename": filename , "DM": "YES"}
         else:
-            #dont encrypt
-            encrypted = raw_data
+            header = {"sender": senderfp,"filename": filename}
+        encrypted = fcrypto.gpg_sign_and_encrypt_binary(raw_data, recipient, senderfp)
         packed = pack_message(0x02, header, recipient, encrypted)
         sock.sendall(packed)
         if isdir:
             try:
-                os.remove(zipname)
+                if zipname:
+                    os.remove(zipname)
             except FileNotFoundError:
                 pass
     except Exception as e:
         fui.printBuffCmt(f"[-] Error sending file: {e}", screenBuffer)
 
 def receive_signed_file(data: bytes, header: dict, room_name: str, profile: Profile, screenBuffer):
-
+    """ Only writes file if signer == sender """
     def get_unique_filename(base_path: str, name: str) -> str:
         """Returns a filename that does not exist in the base_path by appending _1, _2, etc."""
         name_no_ext, ext = os.path.splitext(name)
@@ -291,64 +281,80 @@ def receive_signed_file(data: bytes, header: dict, room_name: str, profile: Prof
 
     filename = sanitize_filename(header.get("filename", "unnamed.dat"))
     sender = header.get("sender", "Unknown")
-
-    homedir = os.path.expanduser("~")
-    homeddir = os.path.join(homedir, "Downloads")
-    if profile.defDdir != "":
-        if os.path.exists(profile.defDdir):
-            log_path = profile.defDdir
-        else:
-            fui.printBuffCmt(f"[-] Cannot find '{profile.defDdir}', defaulting", screenBuffer)
-            log_path = os.path.join(homeddir, room_name)
-    else:
-        log_path = os.path.join(homeddir, room_name)
-    os.makedirs(log_path, exist_ok=True)
-
-    #Generate safe filename if exists
-    filename = get_unique_filename(log_path, filename)
-    dec_path = os.path.join(log_path, filename)
-    isDM = header.get("DM") == "YES"
     typestr = ""
-    if isDM:
+    if header.get("DM") == "YES":
         typestr += f"[{fui.color('DM','purple')}]"
-
     try:
         decrypted_data, signer_fp = fcrypto.gpg_decrypt_and_verify_binary(data)
-
-        #Early reject if signature present but not accepted
-        if signer_fp is not None and not determine_accept_action("file", signer_fp, profile):
-            #(f"{fui.timestamp()}[!] Rejected file '{filename}' from {sender} (untrusted key {signer_fp})")
-            return
-
-        acceptedFile = False
-
+        acceptedFile = True #Auto accept for now
         if signer_fp:
+            #Signed
+            if not determine_accept_action("f", signer_fp, profile):
+                #(f"{fui.timestamp()}[!] Rejected file '{filename}' from {sender} (untrusted key {signer_fp})")
+                return
             #Try resolve alias by fingerprint
             alias_match = None
             for alias, fps in profile.aliases.items():
                 if signer_fp in fps:
                     alias_match = alias
                     break
-
-            if alias_match:
-                #Known + trusted signer
-                fui.printBuff(f"{fui.timestamp()}{typestr}[{fui.color(alias_match, 'green')}] Sent file '{filename}'", screenBuffer)
-
-                #Auto-accept (replace with prompt if needed)
-                acceptedFile = True
+            if signer_fp == sender:
+                #Signed by sender
+                if alias_match:
+                    #Signed by alias
+                    fui.printBuff(f"{fui.timestamp()}{typestr}[{fui.color(alias_match, 'green')}] Sent '{filename}'", screenBuffer)
+                else:
+                    #Signed by fp
+                    fui.printBuff(f"{fui.timestamp()}{typestr}[{fui.color(sender[:8] + '..', 'blue')}] Sent '{filename}'", screenBuffer)
+                #Accept file
+                #Get download directory
+                homedir = os.path.expanduser("~")
+                homeddir = os.path.join(homedir, "Downloads") #Default download dir = homeddir/room/
+                if profile.defDdir != "":
+                    #has ddir set (use exact dir if exists)
+                    if os.path.exists(profile.defDdir):
+                        log_path = profile.defDdir
+                    else:
+                        fui.printBuffCmt(f"[-] Cannot find '{profile.defDdir}', defaulting", screenBuffer)
+                        log_path = os.path.join(homeddir, room_name)
+                else:
+                    log_path = os.path.join(homeddir, room_name)
+                os.makedirs(log_path, exist_ok=True)
+                filename = get_unique_filename(log_path, filename)
+                dec_path = os.path.join(log_path, filename)
                 with open(dec_path, 'wb') as df:
                     df.write(decrypted_data)
                 fui.printBuffCmt(f"[+] Saved '{dec_path}'", screenBuffer)
             else:
-                #Signed but unknown key
-                fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color(f'[!]{signer_fp[:8]}...[!]', 'red')}[\"{fui.color(sender, 'yellow')}\"] Sent file '{filename}'", screenBuffer)
+                #Not signed by claimed sender
+                if alias_match:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color(f'[!]', 'orange')}[\"{fui.color(alias_match, 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                else:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color(f'[!]', 'orange')}[\"{fui.color(sender[:8] + '..', 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                fui.printBuff(fui.color(f"[!] Not saving, signed by unexpected key:", "orange") + signer_fp, screenBuffer)
         else:
-            #No signature
-            fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]NO SIG[!]', 'red')}[\"{fui.color(sender, 'yellow')}\"] Sent file '{filename}'", screenBuffer)
+            #Not signed
+            alias_match = None
+            for alias, fps in profile.aliases.items():
+                if sender in fps:
+                    alias_match = alias
+                    break
+            if decrypted_data:
+                if alias_match:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(alias_match, 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                else:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(sender[:8] + '..', 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                fui.printBuff(fui.color('[!] Could not verify file, discarding', 'orange'), screenBuffer)
+            else:
+                if alias_match:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(alias_match, 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                else:
+                    fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'orange')}[\"{fui.color(sender[:8] + '..', 'yellow')}\"] Sent '{filename}'", screenBuffer)
+                fui.printBuff(fui.color('[!] Could not decrypt file, discarding', 'orange'), screenBuffer)
     except Exception as e:
-        fui.printBuff(f"{fui.timestamp()}{typestr}[\"{fui.color(sender, 'yellow')}\"]{fui.color(f'[!] <File decryption error>: {e}', 'red')}", screenBuffer)
+        fui.printBuff(f"{fui.timestamp()}{typestr}{fui.color('[!]', 'red')}[\"{fui.color(sender[:8] + '..', 'yellow')}\"]{fui.color(f'[!] <File decryption error>: {e}', 'red')}", screenBuffer)
     if not acceptedFile and os.path.exists(dec_path):
-            os.remove(dec_path)
+        os.remove(dec_path)
 
 #0x03 (server)
 def handle_client_list(data: bytes, header: dict, profile: Profile, state: State):

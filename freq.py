@@ -1,21 +1,9 @@
 # ===================================================================================================================
 # ===================================================  Version  =====================================================
 # ===================================================================================================================
-ptversion = "0.70"
+ptversion = "0.71"
 
 
-
-##########################################   TODO/BUGFIXES
-## DONE/CHANGELOG:
-#   some misc bugs
-#   room cmd tooltip
-#   title for terminal
-#   printout styling consistency
-#   settings view src raw ... set v a, set v
-#   Split from an entire file
-#   Default download dir and default settings dir
-#   Adjust fui.timestamp to HR:MM:SS format
-########################################################################################################- CODE BEGIN
 
 from fclass import Profile, State
 import fcrypto
@@ -106,6 +94,7 @@ def parse_command(line):
         helpstrConn += " \033[0mtor\033[90m(t) - tor proxy mgmt\n     Usage: tor status|proxy [default|<ip:port>]\n"
         helpstrConn += " \033[0mroom\033[90m(r) - room/server mgmt\n     Usage: room list|info|set|quit|add|remove ...\n"
         helpstrConn += " \033[0mwho\033[90m - shows connected peers in current room\n"
+        helpstrConn += " \033[0mwhose\033[90m - prints relevant info about a fingerprint\n     Usage: whose <fingerprint>\n"
         helpstrConn += " \033[0mpolicy\033[90m(p) - policy editor/information\n     Usage: policy message|file|info [<alias|fingerprint>|set|list] [allow|deny|whitelist]\n"
         helpstrConn += "\033[0m"
 
@@ -193,6 +182,12 @@ def parse_command(line):
     
     elif cmd == "who":
         fcalls.whoHere(activeProfile, state)
+
+    elif cmd in ("whose", "whois"):
+        if args:
+            fcalls.whois(activeProfile, state, args[0])
+        else:
+            fui.printBuffCmt("[i] Usage: whose <fingerprint>", state.screenBuffer)
 
     elif cmd in ("send","s"):
         raw_msg = line[len(tokens[0]):].strip()

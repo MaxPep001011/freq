@@ -147,7 +147,7 @@ def alias_info(alias_name: str, profile: Profile, state: State):
     if alias_name not in profile.aliases:
         fui.printBuffCmt(f"[-] No alias found for '{alias_name}'", state.screenBuffer)
         return
-
+    peers_set = set(state.server_peers) if state.server_peers else set()
     fps = profile.aliases[alias_name]
     identColor = fui.get_identity_color(alias_name, state.server_peers, profile)
     fui.printBuff(f"INFO for {fui.color(alias_name, identColor)}:", state.screenBuffer)
@@ -155,14 +155,24 @@ def alias_info(alias_name: str, profile: Profile, state: State):
     #Show each fingerprint with its color and message/file permissions
     for fp in fps:
         color = fui.get_identity_color(fp, state.server_peers, profile)  # get display color for fingerprint
-
+        gpgStat = fcrypto.check_gpg_key(fp)
+        gpgStr = "(no key)"
+        if gpgStat > 1:
+            #priv + pub
+            gpgStr = "(priv + pub)"
+        elif gpgStat > 0:
+            gpgStr = "(pub)"
         #Determine permissions based on current policies
-        msg_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("msg", fp, profile) else "\033[91mDENY\033[0m"
-        file_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("file", fp, profile) else "\033[91mDENY\033[0m"
+        if fp in peers_set:
+            msg_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("m", fp, profile) else "\033[91mDENY\033[0m"
+            file_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("f", fp, profile) else "\033[91mDENY\033[0m"
+        else:
+            msg_perm = "\033[90mALLOW\033[0m" if fconn.determine_accept_action("m", fp, profile) else "\033[90mDENY\033[0m"
+            file_perm = "\033[90mALLOW\033[0m" if fconn.determine_accept_action("f", fp, profile) else "\033[90mDENY\033[0m"        
 
-        fui.printBuff(f" Fingerprint: {fui.color(fp, color)}", state.screenBuffer)
-        fui.printBuff(f"   - Message: {msg_perm}", state.screenBuffer)
-        fui.printBuff(f"   - File: {file_perm}", state.screenBuffer)
+        fui.printBuff(f"  PRINT: {fui.color(fp, color)} {gpgStr}", state.screenBuffer)
+        fui.printBuff(f"    MSG: {msg_perm}", state.screenBuffer)
+        fui.printBuff(f"     FT: {file_perm}", state.screenBuffer)
 def alias_edit(alias_name: str, property: str, value: str, profile: Profile, state: State):
 
     if alias_name not in profile.aliases:
@@ -327,12 +337,36 @@ def whoHere(profile: Profile, state: State):
                     break
 
             display = alias_name if alias_name else fp
-
             status_color = fui.get_identity_color(fp, state.server_peers, profile)
-
             fui.printBuff(f"  - {fui.color(display, status_color)}", state.screenBuffer)
 
     fui.printBuff("", state.screenBuffer)
+
+def whois(profile: Profile, state: State, fingerprint):
+    if len(fingerprint) < 33:
+        fui.printBuffCmt(f"[-] '{fingerprint}' is not a valid fingerprint", state.screenBuffer)
+    akaStr = ""
+    online = False
+    for alias, fps in profile.aliases.items():
+        if fingerprint in fps:
+            alias_info(alias, profile, state)
+            return
+    color = fui.get_identity_color(fingerprint, state.server_peers, profile)
+    gpgStat = fcrypto.check_gpg_key(fingerprint)
+    gpgStr = "(no key)"
+    if gpgStat > 1:
+        #priv + pub
+        gpgStr = "(priv + pub)"
+    elif gpgStat > 0:
+        gpgStr = "(pub)"
+    #Determine permissions based on current policies
+    msg_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("m", fingerprint, profile) else "\033[91mDENY\033[0m"
+    file_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("f", fingerprint, profile) else "\033[91mDENY\033[0m"
+    fui.printBuff(f"INFO for '{fui.color(fingerprint, color)}':", state.screenBuffer)
+    fui.printBuff(f"  PRINT: {fui.color(fingerprint, color)} {gpgStr}", state.screenBuffer)
+    fui.printBuff(f"    MSG: {msg_perm}", state.screenBuffer)
+    fui.printBuff(f"     FT: {file_perm}", state.screenBuffer)
+
 
 def buffer_ident(profile: Profile, state: State):
     fpStr = ""

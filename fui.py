@@ -161,7 +161,7 @@ def get_identity_color(ident: str, server_peers, profile: Profile) -> str:
     - Blocked + Online -> "purple"
     - Blocked + Offline -> "red"
     - Unblocked:
-        - Online + GPG Key -> "green" (if alias) or "blue" (if lone FP)
+        - Online + GPG Key -> "green" if alias else "blue"
         - Online + No GPG Key -> "yellow"
         - Offline + GPG Key -> "gray"
         - Offline + No GPG Key -> "orange"
@@ -171,15 +171,12 @@ def get_identity_color(ident: str, server_peers, profile: Profile) -> str:
     def is_blocked_fp(fp: str) -> bool:
         from fconn import determine_accept_action
         return not determine_accept_action("msg", fp, profile)
-
     #You
     if ident in (profile.fingerprint, profile.nickname):
         return "cyan"
-
     target_fps = []
     is_alias = False
-
-    #Target fp reolution
+    #Target fp resolution
     if ident in profile.aliases:
         #alias to fps
         target_fps = profile.aliases[ident]
@@ -192,19 +189,19 @@ def get_identity_color(ident: str, server_peers, profile: Profile) -> str:
                 #tied to alias
                 is_alias = True
                 break
-
     #find active fps
     active_fp = target_fps[0] if target_fps else ident
     for fp in target_fps:
         if fp in peers_set:
             active_fp = fp
             break
-
     #find indicators
     online = any(fp in peers_set for fp in target_fps)
     blocked = is_blocked_fp(active_fp)
-    has_key = any(fcrypto.check_gpg_key(fp) > 0 for fp in target_fps)
-
+    if online:
+        has_key = fcrypto.check_gpg_key(active_fp) > 0
+    else:
+        has_key = any(fcrypto.check_gpg_key(fp) > 0 for fp in target_fps)
     #Apply color rules
     if blocked:
         return "purple" if online else "red"

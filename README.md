@@ -18,7 +18,7 @@ To get/run,
 
  cd ./freq
 
- python3 freq OR sudo python3 freqserver
+ python3 freq.py OR sudo python3 freqserver.py
 
 To get started,
 

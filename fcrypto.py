@@ -1,4 +1,3 @@
-
 import tarfile
 import tempfile
 from typing import Optional, Tuple
@@ -48,8 +47,6 @@ def gpg_decrypt_and_verify(data: bytes) -> Tuple[bytes, Optional[str]]:
             dec_file.write(decrypted)
             dec_file.flush()
             dec_path = dec_file.name
-        if not dec_path:
-            return None, None
         #Verify sig
         verify_proc = subprocess.run(
             ["gpg", "--status-fd=1", "--verify", dec_path],
