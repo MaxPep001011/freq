@@ -21,23 +21,24 @@ To get/run,
  python3 freq OR sudo python3 freqserver
 
 To get started,
-1.generate your own new gpg key pair to use as your primary signing/decryption key (note fingerprint):
+
+1. generate your own new gpg key pair to use as your primary signing/decryption key (note fingerprint):
 
  gpg --full-generate-key
 
  gpg --list-keys
 
-2.(optional). Then export your public key and share with people:
+2. (optional). Then export your public key and share with people:
 
  gpg --export --armor <your_fingerprint> > pubkey.asc
 
-3.start freq and set your fingerprint:
+3. start freq and set your fingerprint:
 
  python3 freq.py
 
  fp <your_fingerprint>
 
-4.add a room url and connect:
+4. add a room url and connect:
 
  room add <name> <url.onion>
 
