@@ -12,7 +12,7 @@ ptversion = "0.70"
 #   title for terminal
 #   printout styling consistency
 #   settings view src raw ... set v a, set v
-#   Fix help tooltips
+#   Split from an entire file
 #   Default download dir and default settings dir
 #   Adjust fui.timestamp to HR:MM:SS format
 ########################################################################################################- CODE BEGIN
@@ -75,20 +75,21 @@ def parse_command(line):
         helpstr += " \033[0msettings\033[90m(set) - settings manager\n     Usage: settings save|load|view [<path>|saved|active] [raw]\n"
         helpstr += " \033[0mbanner\033[90m - prints banner\n"
         helpstr += " \033[0mclear\033[90m(clr) - clears terminal\n"
-        helpstr += " \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download|logs [<directory>]\n"
+        helpstr += " \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download [<directory>]\n"
         helpstr += " \033[0mquit\033[90m(q) - quits application\n"
         helpstr += " \033[0mhelp\033[90m(h) - displays help strings\n     Usage: help [all|msg|conn|color|general]\n"
         helpstr+= "\033[0m"
         
 
         helpstrColor = "Color guide:\n\n"
-        helpstrColor += fui.color(" GREEN  - ","green") + "Online aliases\n"
         helpstrColor += fui.color(" CYAN - ","cyan") + "You\n"
+        helpstrColor += fui.color(" GREEN  - ","green") + "Online aliases\n"
         helpstrColor += fui.color(" BLUE  - ","blue") + "Online fingerprints (have pubkey)\n"
-        helpstrColor += fui.color(" PURPLE  - ","purple") + "Online blocked aliases/fingerprints\n"
-        helpstrColor += fui.color(" RED  - ","red") + "Offline blocked aliases/fingerprints\n"
         helpstrColor += fui.color(" YELLOW  - ","yellow") + "Online fingerprints (no pubkey)\n"
-        helpstrColor += fui.color(" GRAY  - ","gray") + "Offline\n"
+        helpstrColor += fui.color(" PURPLE  - ","purple") + "Online blocked fingerprints\n"
+        helpstrColor += fui.color(" RED  - ","red") + "Offline blocked fingerprints\n"
+        helpstrColor += fui.color(" GRAY  - ","gray") + "Offline aliases (have pubkey)\n"
+        helpstrColor += fui.color(" ORANGE  - ","orange") + "Offline aliases (no pubkey)\n"
         helpstrColor += "\033[0m"
 
         helpstrMsg = "Messaging Commands:\n\n"
@@ -151,7 +152,7 @@ def parse_command(line):
                 fcalls.room_add(args[1],args[2], activeProfile, state)
             else:
                 fui.printBuffCmt("[i] Usage: room add <name> <url:port>", state.screenBuffer)
-        elif args and args[0].lower() in ("remove","r"):
+        elif args and args[0].lower() in ("remove","r","delete"):
             if len(args) > 1:
                 fcalls.room_remove(args[1], activeProfile, state)
             else:
@@ -223,7 +224,7 @@ def parse_command(line):
         if args:
             if len(args) > 1:
                 alias = args[0]
-                # everything after alias is the raw message
+                #everything after alias is the raw message
                 path = " ".join(args[1:])
                 fcalls.send_direct_file_to_alias(activeProfile, state, alias, path)
             else:
@@ -260,36 +261,33 @@ def parse_command(line):
             fui.printBuffCmt("[i] Usage: fingerprint <fingerprint>", state.screenBuffer)
 
     elif cmd in ("policy", "p"):
-        # ex. policy msg <alias|fingerprint> allow
+        #policy msg <alias|fingerprint> allow
         if not args:
             fui.printBuffCmt("[i] Usage: policy message|file|info [<alias|fingerprint>|set|list] [allow|deny|whitelist]", state.screenBuffer)
             return
 
         subcmd = args[0].lower()
-        # --- MESSAGE POLICIES ---
+        #Msg
         if subcmd in ("message", "m", "msg"):
             if len(args) < 2:
                 fui.printBuffCmt("[i] Usage: policy msg <alias|fingerprint>|set|list allow|deny|whitelist", state.screenBuffer)
                 return
-
             if args[1] in ("set", "s"):
                 if len(args) < 3:
                     fui.printBuffCmt("[i] Usage: policy msg set allow|deny|whitelist", state.screenBuffer)
                 else:
                     fcalls.chgMsgPolicy(args[2], activeProfile, state)
-
             elif args[1] in ("list", "l","ls"):
                 if len(args) > 2:
                     fcalls.bufferPolicyList("msg",args[2], activeProfile, state)
                 else:
                     fui.printBuffCmt(f"[i] Usage: policy msg list whitelist|blacklist", state.screenBuffer)
-
             else:
                 if len(args) < 3:
                     fui.printBuffCmt("[i] Usage: policy msg <alias|fingerprint> allow|deny", state.screenBuffer)
                 else:
                     fcalls.chgPolicyLists("msg", args[1], args[2].lower(), activeProfile, state)
-        # --- FILE POLICIES ---
+        #File
         elif subcmd in ("file", "f"):
             if len(args) < 2:
                 fui.printBuffCmt("[i] Usage: policy file <alias|fingerprint>|set|list allow|deny|whitelist", state.screenBuffer)
@@ -312,8 +310,7 @@ def parse_command(line):
                     fui.printBuffCmt("[i] Usage: policy file <alias|fingerprint> allow|deny", state.screenBuffer)
                 else:
                     fcalls.chgPolicyLists("file", args[1], args[2].lower(), activeProfile, state)
-
-        # --- INFO ---
+        #Info
         elif subcmd in ("info", "i"):
             fcalls.bufferPolicyInfo(activeProfile, state)
 
@@ -345,12 +342,11 @@ def parse_command(line):
             else:
                 fcalls.save_config(activeProfile, state)
         elif args and args[0].lower() in ("load","l"):
-            # Check if a filepath argument was provided
             if len(args) > 1:
-                # Load from the specified file
+                #Load from arg
                 fcalls.load_config(activeProfile, state, filepath=args[1])
             else:
-                # Load from the default location
+                #Load from default
                 fcalls.load_config(activeProfile, state)
         elif args and args[0].lower() in ("view","v","info","i","list","ls"):
             if len(args) > 1:
