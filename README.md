@@ -40,6 +40,6 @@ To get started,
 
 4. add a room url and connect:
 
- room add <name> <url.onion>
+ room add <room_name> <url.onion>
 
- room set <name>
+ room set <room_name>
