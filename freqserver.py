@@ -148,17 +148,22 @@ def main():
         pport = 80
     forwarded = input("[?] Already forwarded onion service in torrc? (y/N): ").lower().strip()
     if forwarded != "y":
-        print("\n[!] Add/uncomment the following lines to your torrc:")
+        print("\n[+] Add/uncomment the following lines to your torrc and save:")
         print(" - Normal Linux: edit /etc/tor/torrc")
         print(f"    HiddenServiceDir /var/lib/tor/hidden_service/")
-        print(f"    HiddenServicePort {pport} {ip}:{lport}\n")
-        print(" - Whonix: edit /usr/local/etc/torrc.d/50_user.conf in gatewayVM")
+        print(f"    HiddenServicePort {pport} {ip}:{lport}")
+        print(f"     - Adjust firewall to allow incoming connections at {ip}:{lport}")
+        print("     - Then restart tor:")
+        print("         sudo systemctl restart tor")
+        print(" - Whonix (Qubes): edit /usr/local/etc/torrc.d/50_user.conf (in gatewayVM)")
         print(f"    HiddenServiceDir /var/lib/tor/hidden_service/")
         print(f"    HiddenServicePort {pport} 'whonix-workstation-ip':{lport}")
         print("     - Also edit firewall in the workstation (thisVM) and add the following")
         print(f"         EXTERNAL_OPEN_PORTS+=\" {lport} \"")
-        print("     - Then restart the firewall")
+        print("     - Restart the firewall:")
         print("         sudo whonix_firewall")
+        print("     - Then restart tor (in gatewayVM):")
+        print("         sudo systemctl restart tor")
         input("--- PRESS ENTER WHEN COMPLETE AND TOR HAS RESTARTED ---")
 
     clients = {}

@@ -24,7 +24,7 @@ def room_list(profile: Profile, state: State):
         fui.printBuff(pad + fui.color(f" {marker} " + name,color), state.screenBuffer)
 def room_info(profile: Profile, state: State, rname):
     if not rname:
-        fui.printBuffCmt("[-] Not in a room", state.screenBuffer)
+        fui.printBuffCmt("[-] Not in a room, run 'room info <name>'", state.screenBuffer)
         return
     for name, url in profile.rooms:
         if name == rname:
@@ -83,16 +83,16 @@ def room_set(rname, profile: Profile, state: State):
             fconn.send_message(state.current_sock, "JOINMESSAGE", state.serverNN, profile.fingerprint, "UE")
             fui.clearBuff(state.screenBuffer)
             return
-    fui.printBuffCmt(f"[-] Room '{rname}' not found.", state.screenBuffer)
+    fui.printBuffCmt(f"[-] Room '{rname}' not found", state.screenBuffer)
 def room_leave(profile: Profile, state: State):
-    """Leave the current room and close the connection."""
+    """Leave the current room and close the connection """
     
     if not state.currentRoom:
         fui.printBuffCmt("[-] Not in any room", state.screenBuffer)
         return
     room2leave = state.currentRoom
 
-    fui.printBuffCmt(f"[+] Leaving {fui.color(room2leave, 'blue')}{fui.color('...','gray')}", state.screenBuffer)
+    fui.printBuffCmt(f"[+] Leaving {fui.color(room2leave, 'blue')}", state.screenBuffer)
     fui.updateScreen(state.screenBuffer, state.connStatus, profile.nickname, state.currentRoom, True)
     state.currentRoom = ""
     #Stop listener thread
@@ -115,7 +115,7 @@ def room_leave(profile: Profile, state: State):
 def room_add(name, url, profile: Profile, state: State):
     for rname, _ in profile.rooms:
         if rname == name:
-            fui.printBuffCmt(f"[-] Room '{name}' already exists.", state.screenBuffer)
+            fui.printBuffCmt(f"[-] Room '{name}' already exists", state.screenBuffer)
             return
     profile.rooms.append((name, url))
     fui.printBuffCmt(f"[+] Added room '{name}' @ '{url}'", state.screenBuffer)
@@ -124,7 +124,7 @@ def room_remove(nameORurl, profile: Profile, state: State):
     removed = False
     for name, url in profile.rooms:
         if name == nameORurl or url == nameORurl:
-            fui.printBuffCmt(f"[+] Removed room '{name}' ({url}).", state.screenBuffer)
+            fui.printBuffCmt(f"[+] Removed room '{name}' ({url})", state.screenBuffer)
             removed = True
             if state.currentRoom == name:
                 state.currentRoom = ""
@@ -132,7 +132,7 @@ def room_remove(nameORurl, profile: Profile, state: State):
             new_rooms.append((name, url))
     profile.rooms[:] = new_rooms
     if not removed:
-        fui.printBuffCmt(f"[-] Room '{nameORurl}' not found.", state.screenBuffer)
+        fui.printBuffCmt(f"[-] Room '{nameORurl}' not found", state.screenBuffer)
 
 def alias_list(profile, state):
     fui.printBuff(fui.style(f"ALIASES ({len(profile.aliases)}):","bold"), state.screenBuffer)
@@ -150,7 +150,7 @@ def alias_info(alias_name: str, profile: Profile, state: State):
     peers_set = set(state.server_peers) if state.server_peers else set()
     fps = profile.aliases[alias_name]
     identColor = fui.get_identity_color(alias_name, state.server_peers, profile)
-    fui.printBuff(fui.style(f"INFO for {fui.color(alias_name, identColor)}:","bold"), state.screenBuffer)
+    fui.printBuff(fui.style(f"INFO for {fui.color(alias_name, identColor) + fui.color(' (alias)', 'gray')}:","bold"), state.screenBuffer)
 
     #Show each fingerprint with its color and message/file permissions
     for fp in fps:
@@ -341,18 +341,18 @@ def whoHere(profile: Profile, state: State):
             status_color = fui.get_identity_color(fp, state.server_peers, profile)
             fui.printBuff(pad + f"- {fui.color(display, status_color)}", state.screenBuffer)
 
-    fui.printBuff("", state.screenBuffer)
-
-def whois(profile: Profile, state: State, fingerprint):
+def whois(profile: Profile, state: State, ident: str):
     for alias, fps in profile.aliases.items():
-        if fingerprint in fps:
+        if (ident == alias) or (ident in fps):
             alias_info(alias, profile, state)
             return
-    if len(fingerprint) < 33:
-        fui.printBuffCmt(f"[-] '{fingerprint}' is not a valid fingerprint or alias", state.screenBuffer)
-    online = fingerprint in state.server_peers
-    color = fui.get_identity_color(fingerprint, state.server_peers, profile)
-    gpgStat = fcrypto.check_gpg_key(fingerprint)
+    #Fingerprint (non alias)
+    if len(ident) < 33:
+        fui.printBuffCmt(f"[-] '{ident}' is not a valid fingerprint or alias", state.screenBuffer)
+        return
+    online = ident in state.server_peers
+    color = fui.get_identity_color(ident, state.server_peers, profile)
+    gpgStat = fcrypto.check_gpg_key(ident)
     gpgStr = "(no key)"
     if gpgStat > 1:
         #priv + pub
@@ -361,13 +361,13 @@ def whois(profile: Profile, state: State, fingerprint):
         gpgStr = "(pub)"
     #Determine permissions based on current policies
     if online:
-        msg_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("m", fingerprint, profile) else "\033[91mDENY\033[0m"
-        file_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("f", fingerprint, profile) else "\033[91mDENY\033[0m"
+        msg_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("m", ident, profile) else "\033[91mDENY\033[0m"
+        file_perm = "\033[92mALLOW\033[0m" if fconn.determine_accept_action("f", ident, profile) else "\033[91mDENY\033[0m"
     else:
-        msg_perm = "ALLOW" if fconn.determine_accept_action("m", fingerprint, profile) else "DENY"
-        file_perm = "ALLOW" if fconn.determine_accept_action("f", fingerprint, profile) else "DENY"
-    fui.printBuff(fui.style(f"INFO for {fui.color(fingerprint, color)}:","bold"), state.screenBuffer)
-    fui.printBuff(f"  \033[90mPRINT: {fui.color(fingerprint, color)} {gpgStr}", state.screenBuffer)
+        msg_perm = "ALLOW" if fconn.determine_accept_action("m", ident, profile) else "DENY"
+        file_perm = "ALLOW" if fconn.determine_accept_action("f", ident, profile) else "DENY"
+    fui.printBuff(fui.style(f"INFO for {fui.color(ident, color)}:","bold"), state.screenBuffer)
+    fui.printBuff(f"  \033[90mPRINT: {fui.color(ident, color)} {gpgStr}", state.screenBuffer)
     fui.printBuff(f"    \033[90mMSG: {msg_perm}", state.screenBuffer)
     fui.printBuff(f"     \033[90mFT: {file_perm}\033[0m", state.screenBuffer)
 
@@ -451,7 +451,7 @@ def chgPolicyLists(msgType, ident, action, profile: Profile, state: State):
                 fui.printBuffCmt(f"[-] {fp[:8]}.. alr on {msgType} blacklist", state.screenBuffer)
         else:
             fui.printBuffCmt(f"[i] Usage: policy {msgType} {ident} allow|deny", state.screenBuffer)
-def bufferPolicyInfo(profile: Profile, state: State):
+def bufferPolicyInfo(profile: Profile, state: State, verbose=False):
     msgColor = ""
     fileColor = ""
     mspecstr = ""
@@ -482,6 +482,13 @@ def bufferPolicyInfo(profile: Profile, state: State):
     if fspecstr:
         fileStr += (fspecstr + "\033[0m")
     fui.printBuff(f"{fui.style('POLICY:','bold')}\n    \033[90mMSG: " + msgStr + "\n     \033[90mFT: " + fileStr, state.screenBuffer)
+    if verbose:
+        bufferPolicyList("msg", "b", profile, state)
+        bufferPolicyList("msg", "w", profile, state)
+
+        bufferPolicyList("file", "b", profile, state)
+        bufferPolicyList("file", "w", profile, state)
+
 
 def chgTorProxy(ipport, profile: Profile, state: State):
     try:
@@ -534,9 +541,9 @@ def bufferPolicyList(listType, color, profile: Profile, state: State):
 
     header = f"{listType.capitalize()} {listName}:"
     fui.printBuff(header, state.screenBuffer)
-
+    pad = "       "
     if not activeList:
-        fui.printBuffCmt("  - NONE", state.screenBuffer)
+        fui.printBuffCmt(pad + "- NONE", state.screenBuffer)
         return
 
     for fp in activeList:
@@ -549,7 +556,7 @@ def bufferPolicyList(listType, color, profile: Profile, state: State):
             ident_str = fp
 
         status_color = fui.get_identity_color(fp, state.server_peers, profile)
-        fui.printBuff(f"  - {fui.color(ident_str,status_color)}", state.screenBuffer)
+        fui.printBuff(pad + f"- {fui.color(ident_str,status_color)}", state.screenBuffer)
 
 ###   SETTINGS
 #CONFIG FILE FUNCTIONS
