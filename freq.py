@@ -55,47 +55,49 @@ def parse_command(line):
 
     ### HELP STRINGS
     if True:
-        helpstr = "General Commands:\n\n"
-        helpstr += " \033[0mnickname\033[90m(nn) - switches nickname\n     Usage: nickname <nickname>\n"
-        helpstr += " \033[0mfingerprint\033[90m(fp) - sets fingerprint\n     Usage: fingerprint <fingerprint>\n"
-        helpstr += " \033[0mme\033[90m(m) - displays your info\n\n"
-        helpstr += " \033[0malias\033[90m(p) - aliases/contacts\n     Usage: alias list|info|edit|add|remove ...\n"
-        helpstr += " \033[0msettings\033[90m(set) - settings manager\n     Usage: settings save|load|view [<path>|saved|active] [raw]\n"
-        helpstr += " \033[0mbanner\033[90m - prints banner\n"
-        helpstr += " \033[0mclear\033[90m(clr) - clears terminal or n buffer lines (not terminal lines)\n     Usage: clear [<n>]\n"
-        helpstr += " \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download [<directory>]\n"
-        helpstr += " \033[0mquit\033[90m(q) - quits application\n"
-        helpstr += " \033[0mhelp\033[90m(h) - displays help strings\n     Usage: help [all|msg|conn|color|general]\n"
+        helpstr = fui.style("GENERAL:\n","bold")
+        helpstr += "  \033[0mnickname\033[90m(nn) - switches nickname\n     Usage: nickname <nickname>\n"
+        helpstr += "  \033[0mfingerprint\033[90m(fp) - sets fingerprint\n     Usage: fingerprint <fingerprint>\n"
+        helpstr += "  \033[0mme\033[90m(m) - displays your info\n\n"
+        helpstr += "  \033[0malias\033[90m(p) - aliases/contacts\n     Usage: alias list|info|edit|add|remove ...\n"
+        helpstr += "  \033[0msettings\033[90m(set) - settings manager\n     Usage: settings save|load|view [<path>|saved|active] [raw]\n"
+        helpstr += "  \033[0mbanner\033[90m - prints banner\n"
+        helpstr += "  \033[0mclear\033[90m(clr) - clears terminal or n buffer lines (not terminal lines)\n     Usage: clear [<n>]\n"
+        helpstr += "  \033[0mquit\033[90m(q) - quits application\n"
+        helpstr += "  \033[0mhelp\033[90m(h) - displays help strings\n     Usage: help [all|msg|conn|color|general]"
         helpstr+= "\033[0m"
         
 
-        helpstrColor = "Color guide:\n\n"
-        helpstrColor += fui.color(" CYAN - ","cyan") + "You\n"
-        helpstrColor += fui.color(" GREEN  - ","green") + "Online aliases\n"
-        helpstrColor += fui.color(" BLUE  - ","blue") + "Online fingerprints (have pubkey)\n"
-        helpstrColor += fui.color(" YELLOW  - ","yellow") + "Online fingerprints (no pubkey)\n"
-        helpstrColor += fui.color(" PURPLE  - ","purple") + "Online blocked fingerprints\n"
-        helpstrColor += fui.color(" RED  - ","red") + "Offline blocked fingerprints\n"
-        helpstrColor += fui.color(" GRAY  - ","gray") + "Offline aliases (have pubkey)\n"
-        helpstrColor += fui.color(" ORANGE  - ","orange") + "Offline aliases (no pubkey)\n"
+        helpstrColor = fui.style("COLORS:\n","bold")
+        helpstrColor += fui.color("  Identity colors will be resolved using the following rules:\n","gray")
+        helpstrColor += fui.color("  CYAN - ","cyan") + "client privkey\n"
+        helpstrColor += fui.color("  TURQUOISE - ","turquoise") + "privkey, online\n"
+        helpstrColor += fui.color("  TEAL - ","teal") + "privkey, offline\n"
+        helpstrColor += fui.color("  GREEN  - ","green") + "alias, pubkey, online\n"
+        helpstrColor += fui.color("  BLUE  - ","blue") + "pubkey, online\n"
+        helpstrColor += fui.color("  GRAY  - ","gray") + "pubkey, offline\n"
+        helpstrColor += fui.color("  YELLOW  - ","yellow") + "keyless, online\n"
+        helpstrColor += fui.color("  ORANGE  - ","orange") + "keyless, offline\n"
+        helpstrColor += fui.color("  PURPLE  - ","purple") + "blocked, online\n"
+        helpstrColor += fui.color("  RED  - ","red") + "blocked, offline"
         helpstrColor += "\033[0m"
 
-        helpstrMsg = "Messaging Commands:\n\n"
-        helpstrMsg += " \033[0msend\033[90m(s) - send message to all aliases in room\n     Usage: send <message>\n"
-        helpstrMsg += " \033[0mfile\033[90m(f) - send file/dir to all aliases in room\n     Usage: file <path>\n"
-        helpstrMsg += " \033[0mdirectmsg\033[90m(dm) - send message to one alias/fingerprint in room\n     Usage: directmsg <alias|fingerprint> <message>\n"
-        helpstrMsg += " \033[0mdirectfile\033[90m(df) - send file to one alias/fingerprint in room\n     Usage: directf <alias|fingerprint> <path>\n"
-
-        helpstrMsg += " \033[0mblock\033[90m(bl) - block key from messaging\n     Usage: block <alias|fingerprint>\n"
-        helpstrMsg += " \033[0munblock\033[90m(ub) - unblock key for messaging\n     Usage: unblock <alias|fingerprint>\n"
+        helpstrMsg = fui.style("MESSAGING:\n","bold")
+        helpstrMsg += "  \033[0msend\033[90m(s) - send message to all aliases in room\n     Usage: send <message>\n"
+        helpstrMsg += "  \033[0mfile\033[90m(f) - send file/dir to all aliases in room\n     Usage: file <path>\n"
+        helpstrMsg += "  \033[0mdirectmsg\033[90m(dm) - send message to one alias/fingerprint in room\n     Usage: directmsg <identity> <message>\n"
+        helpstrMsg += "  \033[0mdirectfile\033[90m(df) - send file to one alias/fingerprint in room\n     Usage: directf <identity> <path>\n"
+        helpstrMsg += "  \033[0mpolicy\033[90m(p) - policy editor/information\n     Usage: policy message|file|info [<identity>|set|list] [allow|deny|whitelist]\n"
+        helpstrMsg += "  \033[0mblock\033[90m(bl) - block key from messaging\n     Usage: block <ident>\n"
+        helpstrMsg += "  \033[0munblock\033[90m(ub) - unblock key for messaging\n     Usage: unblock <ident>"
         helpstrMsg += "\033[0m"
 
-        helpstrConn = "Connection Commands:\n\n"
-        helpstrConn += " \033[0mtor\033[90m(t) - tor proxy mgmt\n     Usage: tor status|proxy [default|<ip:port>]\n"
-        helpstrConn += " \033[0mroom\033[90m(r) - room/server mgmt\n     Usage: room list|info|set|quit|add|remove ...\n"
-        helpstrConn += " \033[0mwho\033[90m - shows connected peers in current room\n"
-        helpstrConn += " \033[0mwhose\033[90m - prints relevant info about a fingerprint\n     Usage: whose <fingerprint>\n"
-        helpstrConn += " \033[0mpolicy\033[90m(p) - policy editor/information\n     Usage: policy message|file|info [<alias|fingerprint>|set|list] [allow|deny|whitelist]\n"
+        helpstrConn = fui.style("CONNECTION:\n","bold")
+        helpstrConn += "  \033[0mtor\033[90m(t) - tor proxy mgmt\n     Usage: tor status|proxy [default|<ip:port>]\n"
+        helpstrConn += "  \033[0mroom\033[90m(r) - room/server mgmt\n     Usage: room list|info|set|quit|add|remove ...\n"
+        helpstrConn += "  \033[0mwho\033[90m - shows connected peers in current room\n"
+        helpstrConn += "  \033[0mwhose\033[90m - prints relevant info about a fingerprint\n     Usage: whose <fingerprint>\n"
+        helpstrConn += "  \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download [<directory>]"
         helpstrConn += "\033[0m"
 
     
@@ -119,6 +121,7 @@ def parse_command(line):
             fui.printBuffCmt("[i] Usage: help [all|msg|conn|color|general]", state.screenBuffer)
         else:
             fui.printBuff(helpstr, state.screenBuffer)
+            fui.printBuffCmt("[+] Note: for all commands type 'help all'", state.screenBuffer)
 
     elif cmd in ("clear","clr"):
         try:
@@ -134,7 +137,7 @@ def parse_command(line):
             fcalls.room_list(activeProfile, state)
         elif args and args[0].lower() in ("info", "i"):
             if len(args) > 1:
-                fcalls.room_info(activeProfile, state, args[1].lower())
+                fcalls.room_info(activeProfile, state, args[1])
             else:
                 fcalls.room_info(activeProfile, state, state.currentRoom)
         elif args and args[0].lower() in ("set", "s"):
@@ -219,7 +222,7 @@ def parse_command(line):
             else:
                 fui.printBuffCmt(f"[i] Usage: directmsg {args[0]} <message>", state.screenBuffer)
         else:
-            fui.printBuffCmt("[i] Usage: directmsg <alias|fingerprint> <message>", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: directmsg <ident> <message>", state.screenBuffer)
 
     elif cmd in ("directfile", "df", "directf"):
         if args:
@@ -231,7 +234,7 @@ def parse_command(line):
             else:
                 fui.printBuffCmt(f"[i] Usage: directf {args[0]} <path>", state.screenBuffer)
         else:
-            fui.printBuffCmt("[i] Usage: directf <alias|fingerprint> <path>", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: directf <ident> <path>", state.screenBuffer)
 
     elif cmd in ("nickname","nn", "nick"):
         if args:
@@ -246,12 +249,12 @@ def parse_command(line):
         if args:
             fcalls.blockkey(args[0], activeProfile, state)
         else:
-            fui.printBuffCmt("[i] Usage: block <alias|fingerprint>", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: block <ident>", state.screenBuffer)
     elif cmd in ("unblock","ublock","ub"):
         if args:
             fcalls.unblockkey(args[0], activeProfile, state)
         else:
-            fui.printBuffCmt("[i] Usage: unblock <alias|fingerprint>", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: unblock <ident>", state.screenBuffer)
 
     elif cmd in ("fingerprint", "fp"):
         if args and (len(args[0]) >= 32):
@@ -262,16 +265,16 @@ def parse_command(line):
             fui.printBuffCmt("[i] Usage: fingerprint <fingerprint>", state.screenBuffer)
 
     elif cmd in ("policy", "p"):
-        #policy msg <alias|fingerprint> allow
+        #policy msg <ident> allow
         if not args:
-            fui.printBuffCmt("[i] Usage: policy message|file|info [<alias|fingerprint>|set|list] [allow|deny|whitelist]", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: policy message|file|info [<ident>|set|list] [allow|deny|whitelist]", state.screenBuffer)
             return
 
         subcmd = args[0].lower()
         #Msg
         if subcmd in ("message", "m", "msg"):
             if len(args) < 2:
-                fui.printBuffCmt("[i] Usage: policy msg <alias|fingerprint>|set|list allow|deny|whitelist", state.screenBuffer)
+                fui.printBuffCmt("[i] Usage: policy msg <ident>|set|list allow|deny|whitelist", state.screenBuffer)
                 return
             if args[1] in ("set", "s"):
                 if len(args) < 3:
@@ -285,13 +288,13 @@ def parse_command(line):
                     fui.printBuffCmt(f"[i] Usage: policy msg list whitelist|blacklist", state.screenBuffer)
             else:
                 if len(args) < 3:
-                    fui.printBuffCmt("[i] Usage: policy msg <alias|fingerprint> allow|deny", state.screenBuffer)
+                    fui.printBuffCmt("[i] Usage: policy msg <ident> allow|deny", state.screenBuffer)
                 else:
                     fcalls.chgPolicyLists("msg", args[1], args[2].lower(), activeProfile, state)
         #File
         elif subcmd in ("file", "f"):
             if len(args) < 2:
-                fui.printBuffCmt("[i] Usage: policy file <alias|fingerprint>|set|list allow|deny|whitelist", state.screenBuffer)
+                fui.printBuffCmt("[i] Usage: policy file <ident>|set|list allow|deny|whitelist", state.screenBuffer)
                 return
 
             if args[1] in ("set", "s"):
@@ -308,15 +311,18 @@ def parse_command(line):
 
             else:
                 if len(args) < 3:
-                    fui.printBuffCmt("[i] Usage: policy file <alias|fingerprint> allow|deny", state.screenBuffer)
+                    fui.printBuffCmt("[i] Usage: policy file <ident> allow|deny", state.screenBuffer)
                 else:
                     fcalls.chgPolicyLists("file", args[1], args[2].lower(), activeProfile, state)
         #Info
         elif subcmd in ("info", "i"):
-            fcalls.bufferPolicyInfo(activeProfile, state)
+            if len(args) > 1 and args[1] in ("v","verbose"):
+                fcalls.bufferPolicyInfo(activeProfile, state, verbose=True)
+            else:
+                fcalls.bufferPolicyInfo(activeProfile, state)
 
         else:
-            fui.printBuffCmt("[i] Usage: policy message|file|info [<alias|fingerprint>|set|list] [allow|deny|whitelist]", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: policy message|file|info [<ident>|set|list] [allow|deny|whitelist]", state.screenBuffer)
 
     elif cmd in ("me", "my", "m", "whoami"):
         fcalls.buffer_ident(activeProfile, state)

@@ -20,15 +20,27 @@ def read_cmd_line():
 
 ### BUFFER
 def clearBuff(buffer, offset: int = 0):
+    """ clear <offset> items from buffer or whole buffer """
     if offset != 0:
         #remove offset lines from end
-        offset = abs(offset)
+        offset
         del buffer[-offset:]
         return
     #clear entire buffer
     buffer.clear()
 def printBuff(bStr, buffer):
+    """ appends <bStr> to new buffer line """
     buffer.append(bStr)
+def writeBuff(bStr, buffer: list, overwrite=False, offset=0):
+    """ writes to line of buffer w option to clear line first
+        offset is from most recent line
+    """
+    latest = buffer.pop(len(buffer) - (offset + 1))
+    if overwrite:
+        buffer.insert(len(buffer) - offset, bStr)
+        return
+    latest += bStr
+    buffer.insert(len(buffer) - offset, latest)
 def printBuffCmt(bStr, buffer):
     printBuff(color(bStr,"gray"), buffer)
 
@@ -116,6 +128,7 @@ def color(message: str, color: str = None) -> str:
         - pink
         - gray
         - cyan
+        - teal
         - white
         - clear
     """
@@ -129,6 +142,8 @@ def color(message: str, color: str = None) -> str:
         "pink": "\033[38;5;198m",
         "gray": "\033[90m",
         "cyan": "\033[96m",
+        "teal": "\033[38;5;30m",
+        "turquoise": "\033[38;5;42m",
         "white": "\033[97m",
         "clear": "\033[0m"
     }
@@ -182,7 +197,7 @@ def get_identity_color(ident: str, server_peers, profile: Profile) -> str:
     def is_blocked_fp(fp: str) -> bool:
         from fconn import determine_accept_action
         return not determine_accept_action("msg", fp, profile)
-    #You
+    #You (This client)
     if ident in (profile.fingerprint, profile.nickname):
         return "cyan"
     target_fps = []
@@ -209,18 +224,25 @@ def get_identity_color(ident: str, server_peers, profile: Profile) -> str:
     #find indicators
     online = any(fp in peers_set for fp in target_fps)
     blocked = is_blocked_fp(active_fp)
+    keysHave = fcrypto.check_gpg_key(active_fp)
     if online:
-        has_key = fcrypto.check_gpg_key(active_fp) > 0
+        has_key = keysHave > 0
+        ownedFP = keysHave > 1
     else:
         has_key = any(fcrypto.check_gpg_key(fp) > 0 for fp in target_fps)
+        ownedFP = any(fcrypto.check_gpg_key(fp) > 1 for fp in target_fps)
     #Apply color rules
     if blocked:
         return "purple" if online else "red"
     if online:
         if has_key:
+            if ownedFP:
+                return "turquoise"
             return "green" if is_alias else "blue"
         return "yellow"
-    #offline
+    #Offline
+    elif ownedFP:
+        return "teal"
     return "gray" if has_key else "orange"
 
 
