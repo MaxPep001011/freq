@@ -19,7 +19,13 @@ def read_cmd_line():
         return None
 
 ### BUFFER
-def clearBuff(buffer):
+def clearBuff(buffer, offset: int = 0):
+    if offset != 0:
+        #remove offset lines from end
+        offset = abs(offset)
+        del buffer[-offset:]
+        return
+    #clear entire buffer
     buffer.clear()
 def printBuff(bStr, buffer):
     buffer.append(bStr)
@@ -37,15 +43,20 @@ def updateScreen(buffer, connStatus, nickname, currentRoom, DrawPS1):
         except OSError:
             width = 80
 
-        stat_bar = color(" FREQ", "green") + ": "
+        stat_bar = "\033[100m\033[1m \033[92mFREQ\033[0m\033[100m\033[1m:   "
         if connStatus:
-            stat_bar += (color("\033[7m Connected ", "green") + color(f" @ {currentRoom}", "blue"))
+            stat_bar += (f"\033[95mCONNECTED   \033[94m@{currentRoom}")
         elif currentRoom == "":
-            stat_bar += (color("\033[7m Disconnected ", "red") + " @ " + color("NONE", "gray"))
+            stat_bar += (f"\033[91mDISCONNECTED   \033[93m@NONE")
         else:
-            stat_bar += (color("\033[7m Disconnected ", "red") + " @ " + color(f"{currentRoom}", "blue"))
-        print(stat_bar)
-        print("\033[90m" + ("~" * width) + "\033[0m")
+            stat_bar += (f"\033[91mDISCONNECTED   \033[93m@{currentRoom}")
+        #39 is const due to the ascii escape char count
+        print(stat_bar + (" " * (39 + (width - len(stat_bar)))) + "\033[0m")
+        if connStatus and currentRoom:
+            print(f"\033]0;FR3Q @ {currentRoom}\007")
+        else:
+            print("\033]0;FR3Q @ NONE\007")
+
 
     #Get current typed input before redraw
     try:
@@ -138,7 +149,7 @@ def style(message: str, style: str = None) -> str:
         - reverse
     """
     #Ill use these eventually
-    color_codes = {
+    style_codes = {
         "bold": "\033[1m",
         "dim": "\033[2m",
         "italic": "\033[3m",
@@ -149,8 +160,8 @@ def style(message: str, style: str = None) -> str:
     }
     reset = "\033[0m"
     
-    if color and color.lower() in color_codes:
-        return f"{color_codes[color.lower()]}{message}{reset}"
+    if style and style.lower() in style_codes:
+        return f"{style_codes[style.lower()]}{message}{reset}"
     return message
 
 def get_identity_color(ident: str, server_peers, profile: Profile) -> str:

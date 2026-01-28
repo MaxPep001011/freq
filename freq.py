@@ -25,7 +25,7 @@ def main():
         sys.exit(0)
     signal.signal(signal.SIGINT, handle_exit)
 
-    print("\033]0;FR3Q @ NONE\007")
+    
     fui.clearBuff(state.screenBuffer)
     fcalls.buffer_version_menu(state, ptversion)
     fcalls.load_config(activeProfile, state)
@@ -62,7 +62,7 @@ def parse_command(line):
         helpstr += " \033[0malias\033[90m(p) - aliases/contacts\n     Usage: alias list|info|edit|add|remove ...\n"
         helpstr += " \033[0msettings\033[90m(set) - settings manager\n     Usage: settings save|load|view [<path>|saved|active] [raw]\n"
         helpstr += " \033[0mbanner\033[90m - prints banner\n"
-        helpstr += " \033[0mclear\033[90m(clr) - clears terminal\n"
+        helpstr += " \033[0mclear\033[90m(clr) - clears terminal or n buffer lines (not terminal lines)\n     Usage: clear [<n>]\n"
         helpstr += " \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download [<directory>]\n"
         helpstr += " \033[0mquit\033[90m(q) - quits application\n"
         helpstr += " \033[0mhelp\033[90m(h) - displays help strings\n     Usage: help [all|msg|conn|color|general]\n"
@@ -121,7 +121,13 @@ def parse_command(line):
             fui.printBuff(helpstr, state.screenBuffer)
 
     elif cmd in ("clear","clr"):
-        fui.clearBuff(state.screenBuffer)
+        try:
+            if args:
+                fui.clearBuff(state.screenBuffer, int(args[0]))
+            else:
+                fui.clearBuff(state.screenBuffer)
+        except Exception:
+            fui.clearBuff(state.screenBuffer)
 
     elif cmd in ("room", "r"):
         if args and args[0].lower() in ("list", "l","ls"):
@@ -349,9 +355,7 @@ def parse_command(line):
                 if len(args) > 2 and args[2].lower() in ("raw","r"):
                     praw = True
                 if args[1].lower() in ("saved","s"):
-                    config_path = fcalls.config_path()
-                    fui.printBuffCmt(f"[+] Parsing '{config_path}'...", state.screenBuffer)
-                    fcalls.buffer_file_settings(state, config_path)
+                    fcalls.buffer_file_settings(state)
                 elif args[1].lower() in ("active","current","a","c"):
                     fcalls.buffer_current_settings(activeProfile, state, praw)
                 else:

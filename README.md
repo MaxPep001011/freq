@@ -1,5 +1,5 @@
 
-FR3Q is a small encrypted chat and filesharing messanger (for linux right now)
+FR3Q is a small encrypted chat and filesharing messenger (for linux right now)
 
 It uses gpg keyring to securely encrypt (with recipients pubkey) and sign (with senders priv key) so messages
 and files sent can be verified reliably. The client connects to any portable freqserver set up and running as 
