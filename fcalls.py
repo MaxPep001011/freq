@@ -3,6 +3,7 @@ import fcrypto
 import fconn
 import fui
 
+import re
 import os
 import sys
 import json
@@ -10,7 +11,7 @@ import socket
 
 def room_list(profile: Profile, state: State):
     fui.printBuff(fui.style(f"ROOMS ({len(profile.rooms)}):","bold"), state.screenBuffer)
-    pad = "      "
+    pad = "       "
     if not profile.rooms:
         fui.printBuffCmt(pad + "- NONE", state.screenBuffer)
         return
@@ -21,7 +22,7 @@ def room_list(profile: Profile, state: State):
             marker = "-"
             if state.connStatus:
                 color = "blue"
-        fui.printBuff(pad + fui.color(f" {marker} " + name,color), state.screenBuffer)
+        fui.printBuff(pad + fui.color(f"{marker} " + name,color), state.screenBuffer)
 def room_info(profile: Profile, state: State, rname):
     if not rname:
         fui.printBuffCmt("[-] Not in a room, run 'room info <name>'", state.screenBuffer)
@@ -380,6 +381,35 @@ def buffer_ident(profile: Profile, state: State):
         fpStr = profile.fingerprint
     fui.printBuff(f"{fui.style('YOU:','bold')}\n         {fui.color(profile.nickname,'cyan')}\n         {fui.color(fpStr,'cyan')}", state.screenBuffer)
 
+def chgLimit(profile: Profile, state: State, limitStr: str):
+    #capture number and unit
+    match = re.match(r"^(\d+\.?\d*)\s*([a-zA-Z]*)$", limitStr.strip())
+    if not match:
+        fui.printBuffCmt("[-] Invalid format, expected '1GB' or '1000' for bytes", state.screenBuffer)
+        return
+    value_str, unit = match.groups()
+    value = float(value_str)
+    unit = unit.upper()
+
+    multipliers = {
+        "": 1,
+        "B": 1,
+        "K": 1000, "KB": 1000,
+        "M": 1000**2, "MB": 1000**2,
+        "G": 1000**3, "GB": 1000**3,
+        "T": 1000**4, "TB": 1000**4
+    }
+    if unit not in multipliers:
+        fui.printBuffCmt(f"[-] Unknown unit '{unit}'", state.screenBuffer)
+        return
+
+    #Final size
+    newLimit = int(value * multipliers[unit])
+    profile.maxMsgSize = newLimit
+
+    pretty_val = f"{value}{unit if unit else 'B'}"
+    fui.printBuffCmt(f"[+] Changed size limit to {pretty_val} ({newLimit} bytes)", state.screenBuffer)
+
 def chgFilePolicy(policy, profile: Profile, state: State):
     if policy in ("allow", "a"):
         profile.filePolicy = "allow"
@@ -452,6 +482,15 @@ def chgPolicyLists(msgType, ident, action, profile: Profile, state: State):
         else:
             fui.printBuffCmt(f"[i] Usage: policy {msgType} {ident} allow|deny", state.screenBuffer)
 def bufferPolicyInfo(profile: Profile, state: State, verbose=False):
+    maximum = profile.maxMsgSize #int for number of bytes
+    #convert to KB,MB,GB
+    units = ("B", "KB", "MB", "GB", "TB")
+    i = 0
+    while maximum >= 1000 and i < len(units) - 1:
+        maximum /= 1000
+        i += 1
+    prettyMS = f"\033[0m{maximum:.1f}{units[i]}"
+
     msgColor = ""
     fileColor = ""
     mspecstr = ""
@@ -481,7 +520,10 @@ def bufferPolicyInfo(profile: Profile, state: State, verbose=False):
         msgStr += mspecstr
     if fspecstr:
         fileStr += (fspecstr + "\033[0m")
-    fui.printBuff(f"{fui.style('POLICY:','bold')}\n    \033[90mMSG: " + msgStr + "\n     \033[90mFT: " + fileStr, state.screenBuffer)
+    fui.printBuff(f"{fui.style('POLICY:','bold')}", state.screenBuffer)
+    fui.printBuff("\033[90mMAXSIZE: " + prettyMS, state.screenBuffer)
+    fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
+    fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
     if verbose:
         bufferPolicyList("msg", "b", profile, state)
         bufferPolicyList("msg", "w", profile, state)
@@ -509,14 +551,15 @@ def chgTorProxy(ipport, profile: Profile, state: State):
 def printTorStat(profile: Profile, state: State):
     fui.printBuff(fui.style("PROXY:","bold"), state.screenBuffer)
     pad = "         "
-    fui.printBuff(pad + f"{profile.torProxyIP}:{profile.torProxyPort}", state.screenBuffer)
     if fconn.is_tor_running(profile.torProxyIP, profile.torProxyPort):
+        fui.printBuffCmt("   ADDR: " + fui.color(f"{profile.torProxyIP}:{profile.torProxyPort}","blue"), state.screenBuffer)
         if state.connStatus:
-            fui.printBuff(pad + fui.color("CONNECTED","purple"), state.screenBuffer)
+            fui.printBuffCmt(pad + fui.color("CONNECTED","purple"), state.screenBuffer)
         else:
-            fui.printBuff(pad + fui.color("REACHABLE","blue"), state.screenBuffer)
+            fui.printBuffCmt(pad + fui.color("REACHABLE","blue"), state.screenBuffer)
     else:
-        fui.printBuff(pad + fui.color("UNREACHABLE","red"), state.screenBuffer)
+        fui.printBuffCmt("   ADDR: " + fui.color(f"{profile.torProxyIP}:{profile.torProxyPort}","clear"), state.screenBuffer)
+        fui.printBuffCmt(pad + fui.color("UNREACHABLE","red"), state.screenBuffer)
 
 def bufferPolicyList(listType, color, profile: Profile, state: State):
     """
@@ -622,9 +665,11 @@ def save_config(profile: Profile, state: State, filepath: str=""):
         },
         "dirs": {
             "download": profile.defDdir
+        },
+        "limits": {
+            "maxSize": profile.maxMsgSize
         }
     }
-
     try:
         with open(filepath, 'w') as f:
             json.dump(config_data, f, indent=4)
@@ -680,6 +725,9 @@ def load_config(profile: Profile, state: State, filepath: str=""):
         dirs = config_data.get("dirs",{})
         profile.defDdir = str(dirs.get("download", profile.defDdir))
 
+        limits = config_data.get("limits", {})
+        profile.maxMsgSize = limits.get("maxSize", profile.maxMsgSize)
+
         fui.printBuffCmt(f"[+] Settings loaded from '{filepath}'", state.screenBuffer)
 
     except json.JSONDecodeError:
@@ -698,32 +746,35 @@ def reset_settings(profile: Profile, state: State):
 def buffer_current_settings(profile: Profile, state: State, praw=0):
     if praw:
         config_data = {
-        "identity": {
-            "nickname": profile.nickname,
-            "fingerprint": profile.fingerprint
-        },
-        "network": {
-            "tor_proxy_ip": profile.torProxyIP,
-            "tor_proxy_port": profile.torProxyPort
-        },
-        "rooms": profile.rooms,
-        "aliases": profile.aliases,
-        "policies": {
-            "messages": {
-                "policy": profile.msgPolicy,
-                "whitelist": list(profile.msgWhitelist),
-                "blacklist": list(profile.msgBlacklist)
+            "identity": {
+                "nickname": profile.nickname,
+                "fingerprint": profile.fingerprint
             },
-            "files": {
-                "policy": profile.filePolicy,
-                "whitelist": list(profile.fileWhitelist),
-                "blacklist": list(profile.fileBlacklist)
+            "network": {
+                "tor_proxy_ip": profile.torProxyIP,
+                "tor_proxy_port": profile.torProxyPort
+            },
+            "rooms": profile.rooms,
+            "aliases": profile.aliases,
+            "policies": {
+                "messages": {
+                    "policy": profile.msgPolicy,
+                    "whitelist": list(profile.msgWhitelist),
+                    "blacklist": list(profile.msgBlacklist)
+                },
+                "files": {
+                    "policy": profile.filePolicy,
+                    "whitelist": list(profile.fileWhitelist),
+                    "blacklist": list(profile.fileBlacklist)
+                }
+            },
+            "dirs": {
+                "download": profile.defDdir
+            },
+            "limits": {
+                "maxSize": profile.maxMsgSize
             }
-        },
-        "dirs": {
-            "download": profile.defDdir,
         }
-    }
         fui.printBuff(f"--- ACTIVE ---", state.screenBuffer)
         fui.printBuff(json.dumps(config_data, indent=0), state.screenBuffer)
         fui.printBuff(f"---- EOS -----", state.screenBuffer)
@@ -745,13 +796,17 @@ def buffer_file_settings(state: State):
             for line in f:
                 fui.printBuff(line.strip(), state.screenBuffer)
             fui.printBuff("----- EOF -----", state.screenBuffer)
+        fui.printBuffCmt(f"[+] Parsed '{path}'", state.screenBuffer)
     else:
         fui.printBuffCmt(f"[-] No settings file exists at {config_path}", state.screenBuffer)
 
 def buffer_version_menu(state: State, version):
     #just print banner for now
     fui.bufferBanner(state.screenBuffer, version)
-    fui.printBuffCmt("SRC: " + fui.color("https://github.com/MaxPep001011/freq","blue"), state.screenBuffer)
+    fui.printBuffCmt("SRC: ", state.screenBuffer)
+    fui.writeBuff(fui.color("https://github.com/","blue"),state.screenBuffer)
+    fui.writeBuff("\033[35mMaxPep001011",state.screenBuffer)
+    fui.writeBuff(fui.color("/freq","blue"),state.screenBuffer)
 
 ###   MESSAGING
 def send_message_to_aliases(profile: Profile, state: State, raw_msg):

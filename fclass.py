@@ -17,7 +17,7 @@ class Profile:
     # Policies
     filePolicy: str = "whitelist"
     msgPolicy: str = "allow"
-    maxMsgLen = 1000000000 #(bytes) Default = 1GB
+    maxMsgSize = 1000000000 #(bytes) Default = 1Gb
 
     # Fingerprint Sets
     msgWhitelist: Set[str] = field(default_factory=set)

@@ -61,9 +61,9 @@ def unpack_message(sock: socket.socket, profile: Profile, serverNN: str) -> Tupl
     #total, used, free = shutil.disk_usage(".") 
     #has_disk_space = free > (data_len + (100 * 1024 * 1024)) #100MB padding
 
-    #Check profile.maxMsgLen
+    #Check profile.maxMsgSize
     data = b""
-    if allowed and data_len <= profile.maxMsgLen:
+    if allowed and data_len <= profile.maxMsgSize:
         #MEM_LIMIT = 10*1024*1024 #10MB
         #eventually force large messages into tmpfiles and check hasDiskSpace above
         chunks = []

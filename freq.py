@@ -1,9 +1,13 @@
 # ===================================================================================================================
 # ===================================================  Version  =====================================================
 # ===================================================================================================================
-ptversion = "0.71"
+ptversion = "0.72"
 
-
+          #          # LEFT OFF: added max msg limit functionality, next do maxMemLimit (anything above will use tmpfiles for recieving)
+    #   #####   #    #  anything above memlimit should be written to a tempfile by unpacker in fconn maybe alter handles to take in optional path
+  #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both
+    #     #     #    #  add mem limit check in unpack
+    #           #    #  add bar to show status of sending large files? use fui.writeBuff? also add dir to 'set view active' printout
 
 from fclass import Profile, State
 import fcrypto
@@ -89,7 +93,8 @@ def parse_command(line):
         helpstrMsg += "  \033[0mdirectfile\033[90m(df) - send file to one alias/fingerprint in room\n     Usage: directf <identity> <path>\n"
         helpstrMsg += "  \033[0mpolicy\033[90m(p) - policy editor/information\n     Usage: policy message|file|info [<identity>|set|list] [allow|deny|whitelist]\n"
         helpstrMsg += "  \033[0mblock\033[90m(bl) - block key from messaging\n     Usage: block <ident>\n"
-        helpstrMsg += "  \033[0munblock\033[90m(ub) - unblock key for messaging\n     Usage: unblock <ident>"
+        helpstrMsg += "  \033[0munblock\033[90m(ub) - unblock key for messaging\n     Usage: unblock <ident>\n"
+        helpstrMsg += "  \033[0mlimit\033[90m(lim) - set maximum size for files allowed (bytes)\n     Usage: limit <n>[MB|GB]"
         helpstrMsg += "\033[0m"
 
         helpstrConn = fui.style("CONNECTION:\n","bold")
@@ -263,6 +268,12 @@ def parse_command(line):
             fui.printBuffCmt("[-] Not valid fingerprint", state.screenBuffer)
         else:
             fui.printBuffCmt("[i] Usage: fingerprint <fingerprint>", state.screenBuffer)
+
+    elif cmd in ("limit","lim"):
+        if args:
+            fcalls.chgLimit(activeProfile, state, args[0])
+        else:
+            fui.printBuffCmt("[i] Usage: limit <n>[MB|GB]", state.screenBuffer)
 
     elif cmd in ("policy", "p"):
         #policy msg <ident> allow
