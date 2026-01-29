@@ -52,11 +52,11 @@ To get started (server):
 
   1. Start script:
 
-   sudo ./freqserver.py		*If using bind port # < 1024
+   sudo python3 ./freqserver.py		*If using bind port # < 1024
  
 	 OR
 
-   ./freqserver.py		*If using bind port # >= 1024
+   python3 ./freqserver.py		*If using bind port # >= 1024
 
   2. Input server bind address, bind port, and service port.
 
