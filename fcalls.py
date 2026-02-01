@@ -143,7 +143,7 @@ def alias_list(profile, state):
         return
 
     for alias, fps in profile.aliases.items():
-        fui.printBuff(pad + f"- {fui.color(alias, fui.get_identity_color(alias, state.server_peers, profile))} " + fui.color(f"({len(fps)} fps)","gray"), state.screenBuffer)
+        fui.printBuff(pad + f"- {fui.color(alias, fui.get_identity_color(alias, state.server_peers, profile))} " + fui.color(f"({len(fps)} fp)","gray"), state.screenBuffer)
 def alias_info(alias_name: str, profile: Profile, state: State):
     if alias_name not in profile.aliases:
         fui.printBuffCmt(f"[-] No alias found for '{alias_name}'", state.screenBuffer)
@@ -347,6 +347,10 @@ def whois(profile: Profile, state: State, ident: str):
         if (ident == alias) or (ident in fps):
             alias_info(alias, profile, state)
             return
+    if ident in (profile.fingerprint, profile.nickname):
+        #ident is this client
+        buffer_ident(profile, state)
+        return
     #Fingerprint (non alias)
     if len(ident) < 33:
         fui.printBuffCmt(f"[-] '{ident}' is not a valid fingerprint or alias", state.screenBuffer)
@@ -495,42 +499,56 @@ def bufferPolicyInfo(profile: Profile, state: State, verbose=False):
     fileColor = ""
     mspecstr = ""
     fspecstr = ""
-    if profile.msgPolicy == "allow":
-        msgColor = "green"
-        if len(profile.msgBlacklist) > 0:
-            mspecstr = f"\033[90m (\033[91m{len(profile.msgBlacklist)}\033[90m)"
-    elif profile.msgPolicy == "deny":
-        msgColor = "red"
-    else:
-        msgColor = "white"
-        mspecstr = f"\033[90m (\033[92m{len(profile.msgWhitelist)}\033[90m)"
-
-    if profile.filePolicy == "allow":
-        fileColor = "green"
-        if len(profile.fileBlacklist) > 0:
-            fspecstr = f" (\033[91m{len(profile.fileBlacklist)}\033[90m)"
-    elif profile.filePolicy == "deny":
-        fileColor = "red"
-    else:
-        fileColor = "white"
-        fspecstr = f"\033[90m (\033[92m{len(profile.fileWhitelist)}\033[90m)"
-    msgStr = fui.color(profile.msgPolicy.upper(), msgColor)
-    fileStr = fui.color(profile.filePolicy.upper(), fileColor)
-    if mspecstr:
-        msgStr += mspecstr
-    if fspecstr:
-        fileStr += (fspecstr + "\033[0m")
     fui.printBuff(f"{fui.style('POLICY:','bold')}", state.screenBuffer)
     fui.printBuff("\033[90mMAXSIZE: " + prettyMS, state.screenBuffer)
-    fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
-    fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
-    if verbose:
-        bufferPolicyList("msg", "b", profile, state)
-        bufferPolicyList("msg", "w", profile, state)
-
-        bufferPolicyList("file", "b", profile, state)
-        bufferPolicyList("file", "w", profile, state)
-
+    #msg
+    if profile.msgPolicy == "allow":
+        msgColor = "green"
+        msgStr = fui.color(profile.msgPolicy.upper(), msgColor)
+        if len(profile.msgBlacklist) > 0:
+            mspecstr = f"\033[90m (\033[91m{len(profile.msgBlacklist)}\033[90m)"
+            msgStr += (mspecstr + "\033[0m")
+            fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
+            if verbose:
+                bufferPolicyList("msg", "b", False, profile, state)
+        else:
+            fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
+    elif profile.msgPolicy == "deny":
+        msgColor = "red"
+        msgStr = fui.color(profile.msgPolicy.upper(), msgColor)
+        fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
+    else:
+        msgColor = "white"
+        msgStr = fui.color(profile.msgPolicy.upper(), msgColor)
+        mspecstr = f"\033[90m (\033[92m{len(profile.msgWhitelist)}\033[90m)"
+        msgStr += (mspecstr + "\033[0m")
+        fui.printBuff("    \033[90mMSG: " + msgStr, state.screenBuffer)
+        if len(profile.msgWhitelist) > 0 and verbose:
+            bufferPolicyList("msg", "w", False, profile, state)
+    #file
+    if profile.filePolicy == "allow":
+        fileColor = "green"
+        fileStr = fui.color(profile.filePolicy.upper(), fileColor)
+        if len(profile.fileBlacklist) > 0:
+            fspecstr = f" (\033[91m{len(profile.fileBlacklist)}\033[90m)"
+            fileStr += (fspecstr + "\033[0m")
+            fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
+            if verbose:
+                bufferPolicyList("file", "b", False, profile, state)
+        else:
+            fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
+    elif profile.filePolicy == "deny":
+        fileColor = "red"
+        fileStr = fui.color(profile.filePolicy.upper(), fileColor)
+        fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
+    else:
+        fileColor = "white"
+        fileStr = fui.color(profile.filePolicy.upper(), fileColor)
+        fspecstr = f"\033[90m (\033[92m{len(profile.fileWhitelist)}\033[90m)"
+        fileStr += (fspecstr + "\033[0m")
+        fui.printBuff("     \033[90mFT: " + fileStr, state.screenBuffer)
+        if len(profile.fileWhitelist) > 0 and verbose:
+            bufferPolicyList("file", "w", False, profile, state)
 
 def chgTorProxy(ipport, profile: Profile, state: State):
     try:
@@ -561,7 +579,7 @@ def printTorStat(profile: Profile, state: State):
         fui.printBuffCmt("   ADDR: " + fui.color(f"{profile.torProxyIP}:{profile.torProxyPort}","clear"), state.screenBuffer)
         fui.printBuffCmt(pad + fui.color("UNREACHABLE","red"), state.screenBuffer)
 
-def bufferPolicyList(listType, color, profile: Profile, state: State):
+def bufferPolicyList(listType, color, printHeader: bool, profile: Profile, state: State):
     """
     Print whitelist/blacklist contents for messages or files.
     listType: "file" or "msg"
@@ -581,14 +599,14 @@ def bufferPolicyList(listType, color, profile: Profile, state: State):
     else:
         fui.printBuffCmt(f"[i] Usage: policy file list whitelist|blacklist", state.screenBuffer)
         return
-
-    header = f"{listType.capitalize()} {listName}:"
-    fui.printBuff(header, state.screenBuffer)
+    if printHeader:
+        header = fui.style(f"{listType.capitalize()} {listName}:", "bold")
+        fui.printBuff(header, state.screenBuffer)
     pad = "       "
     if not activeList:
         fui.printBuffCmt(pad + "- NONE", state.screenBuffer)
         return
-
+    itemColor = "green" if listName == "Whitelist" else "red"
     for fp in activeList:
         #resolve names
         alias_matches = [alias for alias, fps in profile.aliases.items() if fp in fps]
@@ -599,7 +617,7 @@ def bufferPolicyList(listType, color, profile: Profile, state: State):
             ident_str = fp
 
         status_color = fui.get_identity_color(fp, state.server_peers, profile)
-        fui.printBuff(pad + f"- {fui.color(ident_str,status_color)}", state.screenBuffer)
+        fui.printBuff(pad + fui.color("- ", itemColor) + fui.color(ident_str,status_color), state.screenBuffer)
 
 ###   SETTINGS
 #CONFIG FILE FUNCTIONS
@@ -828,9 +846,9 @@ def send_file_to_aliases(profile: Profile, state: State, raw_path):
                 if fpr in state.server_peers:
                     if fcrypto.check_gpg_key(fpr) > 0:
                         fconn.send_file(state.current_sock, raw_path, fpr, profile.fingerprint, "", state.screenBuffer)
-        fui.printBuff(f"{fui.timestamp()}[{fui.color(profile.nickname, 'cyan')}] --> '{raw_path}'", state.screenBuffer)
+        fui.printBuff(f"{fui.timestamp()}[{fui.color(profile.nickname, 'cyan')}] Sent '{raw_path}'", state.screenBuffer)
     else:
-        fui.printBuff(f"{fui.timestamp()}[{fui.color(profile.nickname, 'gray')}] --> '{fui.color(raw_path, 'gray')}'", state.screenBuffer)
+        fui.printBuff(f"{fui.timestamp()}[{fui.color(profile.nickname, 'gray')}] Sent '{fui.color(raw_path, 'gray')}'", state.screenBuffer)
 
 def send_direct_message_to_alias(profile: Profile, state: State, alias: str, raw_msg: str):
     """

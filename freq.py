@@ -1,12 +1,12 @@
 # ===================================================================================================================
 # ===================================================  Version  =====================================================
 # ===================================================================================================================
-ptversion = "0.72"
+ptversion = "0.73"
 
-          #          # LEFT OFF: added max msg limit functionality, next do maxMemLimit (anything above will use tmpfiles for recieving)
+          #          # LEFT OFF: maxMemLimit (anything above will use tmpfiles for recieving)
     #   #####   #    #  anything above memlimit should be written to a tempfile by unpacker in fconn maybe alter handles to take in optional path
-  #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both
-    #     #     #    #  add mem limit check in unpack
+  #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both and limit check in unpack
+    #     #     #    #  
     #           #    #  add bar to show status of sending large files? use fui.writeBuff? also add dir to 'set view active' printout
 
 from fclass import Profile, State
@@ -91,7 +91,7 @@ def parse_command(line):
         helpstrMsg += "  \033[0mfile\033[90m(f) - send file/dir to all aliases in room\n     Usage: file <path>\n"
         helpstrMsg += "  \033[0mdirectmsg\033[90m(dm) - send message to one alias/fingerprint in room\n     Usage: directmsg <identity> <message>\n"
         helpstrMsg += "  \033[0mdirectfile\033[90m(df) - send file to one alias/fingerprint in room\n     Usage: directf <identity> <path>\n"
-        helpstrMsg += "  \033[0mpolicy\033[90m(p) - policy editor/information\n     Usage: policy message|file|info [<identity>|set|list] [allow|deny|whitelist]\n"
+        helpstrMsg += "  \033[0mpolicy\033[90m(p) - policy editor/viewer\n     Usage: policy message|file|info [<identity>|set|list|verbose] [allow|deny|whitelist]\n"
         helpstrMsg += "  \033[0mblock\033[90m(bl) - block key from messaging\n     Usage: block <ident>\n"
         helpstrMsg += "  \033[0munblock\033[90m(ub) - unblock key for messaging\n     Usage: unblock <ident>\n"
         helpstrMsg += "  \033[0mlimit\033[90m(lim) - set maximum size for files allowed (bytes)\n     Usage: limit <n>[MB|GB]"
@@ -261,7 +261,7 @@ def parse_command(line):
         else:
             fui.printBuffCmt("[i] Usage: unblock <ident>", state.screenBuffer)
 
-    elif cmd in ("fingerprint", "fp"):
+    elif cmd in ("fingerprint", "fp","print"):
         if args and (len(args[0]) >= 32):
             fcalls.chgfingerprint(args[0], activeProfile, state)
         elif args:
@@ -294,7 +294,7 @@ def parse_command(line):
                     fcalls.chgMsgPolicy(args[2], activeProfile, state)
             elif args[1] in ("list", "l","ls"):
                 if len(args) > 2:
-                    fcalls.bufferPolicyList("msg",args[2], activeProfile, state)
+                    fcalls.bufferPolicyList("msg",args[2], True, activeProfile, state)
                 else:
                     fui.printBuffCmt(f"[i] Usage: policy msg list whitelist|blacklist", state.screenBuffer)
             else:
@@ -316,7 +316,7 @@ def parse_command(line):
 
             elif args[1] in ("list", "l","ls"):
                 if len(args) > 2:
-                    fcalls.bufferPolicyList("file",args[2], activeProfile, state)
+                    fcalls.bufferPolicyList("file",args[2], True, activeProfile, state)
                 else:
                     fui.printBuffCmt(f"[i] Usage: policy file list whitelist|blacklist", state.screenBuffer)
 
