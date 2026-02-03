@@ -6,12 +6,12 @@ ptversion = "0.73"
           #          # LEFT OFF: maxMemLimit (anything above will use tmpfiles for recieving)
     #   #####   #    #  anything above memlimit should be written to a tempfile by unpacker in fconn maybe alter handles to take in optional path
   #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both and limit check in unpack
-    #     #     #    #  add room edit. add profile switcher and maybe encrypt settings
-    #     #     #    #  add room edit.
+    #     #     #    #  add profile switcher and maybe encrypt settings
+    #     #     #    #  
     #           #    #  add bar to show status of sending large files? use fui.writeBuff? also add dir to 'set view active' printout
 #BUGS:
-#   switching profile after loading full profile prevents being able to connect to socks5 <url:port>
-#   
+#   NONE FOUND
+
 from fclass import Profile, State
 import fcrypto
 import fcalls
@@ -32,7 +32,6 @@ def main():
         sys.exit(0)
     signal.signal(signal.SIGINT, handle_exit)
 
-    
     fui.clearBuff(state.screenBuffer)
     fcalls.buffer_version_menu(state, ptversion)
     fcalls.load_config(activeProfile, state)
@@ -102,7 +101,7 @@ def parse_command(line):
 
         helpstrConn = fui.style("CONNECTION:\n","bold")
         helpstrConn += "  \033[0mtor\033[90m(t) - tor proxy mgmt\n     Usage: tor status|proxy [default|<ip:port>]\n"
-        helpstrConn += "  \033[0mroom\033[90m(r) - room/server mgmt\n     Usage: room list|info|set|quit|add|remove ...\n"
+        helpstrConn += "  \033[0mroom\033[90m(r) - room/server mgmt\n     Usage: room list|info|join|quit|edit|add|remove ...\n"
         helpstrConn += "  \033[0mwho\033[90m - shows connected peers in current room\n"
         helpstrConn += "  \033[0mwhose\033[90m - prints relevant info about a fingerprint\n     Usage: whose <fingerprint>\n"
         helpstrConn += "  \033[0mdirectory\033[90m(dir) - updates default directories\n     Usage: dir download [<directory>]"
@@ -148,7 +147,7 @@ def parse_command(line):
                 fcalls.room_info(activeProfile, state, args[1])
             else:
                 fcalls.room_info(activeProfile, state, state.currentRoom)
-        elif args and args[0].lower() in ("set", "s"):
+        elif args and args[0].lower() in ("join", "s", "j"):
             if len(args) > 1:
                 fcalls.room_set(args[1], activeProfile, state)
             else:
@@ -158,15 +157,22 @@ def parse_command(line):
                 fcalls.room_add(args[1],args[2], activeProfile, state)
             else:
                 fui.printBuffCmt("[i] Usage: room add <name> <url:port>", state.screenBuffer)
-        elif args and args[0].lower() in ("remove","r","delete"):
+        elif args and args[0].lower() in ("remove","r","delete","d"):
             if len(args) > 1:
                 fcalls.room_remove(args[1], activeProfile, state)
             else:
                 fui.printBuffCmt("[i] Usage: room remove <name|url:port>", state.screenBuffer)
         elif args and args[0] in ("leave", "exit", "quit", "q"):
             fcalls.room_leave(activeProfile, state)
+        elif args and args[0] in ("e", "edit"):
+            if len(args) > 3:
+                fcalls.room_edit(args[1], args[2], args[3], activeProfile, state)
+            elif len(args) > 1:
+                fui.printBuffCmt(f"[i] Usage: room edit {args[1]} name|url|port <value>", state.screenBuffer)
+            else:
+                fui.printBuffCmt("[i] Usage: room edit <name> name|url|port <value>", state.screenBuffer)
         else:
-            fui.printBuffCmt("[i] Usage: room list|info|set|quit|add|remove ...", state.screenBuffer)
+            fui.printBuffCmt("[i] Usage: room list|info|join|quit|edit|add|remove ...", state.screenBuffer)
 
     elif cmd in ("alias", "a"):
         if args and args[0].lower() in ("list","l","ls"):
@@ -189,7 +195,7 @@ def parse_command(line):
                 fcalls.alias_add(args[1], args[2], activeProfile, state)
             else:
                 fui.printBuffCmt("[i] Usage: alias add <name> <fingerprint>", state.screenBuffer)
-        elif args and args[0].lower() in ("remove","r"):
+        elif args and args[0].lower() in ("remove","r","delete","d"):
             if len(args) > 1:
                 fcalls.alias_remove(args[1], activeProfile, state)
             else:

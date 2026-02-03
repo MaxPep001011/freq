@@ -28,8 +28,8 @@ def room_info(profile: Profile, state: State, rname):
         fui.printBuffCmt("[-] Not in a room, run 'room info <name>'", state.screenBuffer)
         return
     for name, url in profile.rooms:
-        if name == rname:
-            fui.printBuff(fui.style(f"INFO for {fui.color(rname,'blue')}:","bold"), state.screenBuffer)
+        if name == rname or name in url:
+            fui.printBuff(fui.style(f"INFO for {fui.color(name,'blue')}:","bold"), state.screenBuffer)
             fui.printBuff(f"    \033[90mURL: {fui.color(url,'purple')}", state.screenBuffer)
             if state.connStatus:
                 whoHere(profile, state)
@@ -113,13 +113,59 @@ def room_leave(profile: Profile, state: State):
     state.server_peers = []
     state.current_sock = None
     state.connStatus = False
-def room_add(name, url, profile: Profile, state: State):
-    for rname, _ in profile.rooms:
-        if rname == name:
-            fui.printBuffCmt(f"[-] Room '{name}' already exists", state.screenBuffer)
+def room_add(rname, url, profile: Profile, state: State):
+    if any(name == value for name, _ in profile.rooms):
+        fui.printBuffCmt(f"[-] Room '{rname}' already exists", state.screenBuffer)
+        return
+    if ":" in url:
+        portStr = url.split(':')[1]
+        if not portStr.isdigit():
+            fui.printBuffCmt(f"[-] Value '{portStr}' is not a valid port", state.screenBuffer)
             return
-    profile.rooms.append((name, url))
-    fui.printBuffCmt(f"[+] Added room '{name}' @ '{url}'", state.screenBuffer)
+        if int(portStr) > 65535:
+            fui.printBuffCmt(f"[-] Value '{portStr}' is not a valid port", state.screenBuffer)
+            return
+    profile.rooms.append((rname, url))
+    fui.printBuffCmt(f"[+] Added room '{rname}' @ '{url}'", state.screenBuffer)
+def room_edit(rname: str, property: str, value: str, profile: Profile, state: State):
+    roomIndex = -1
+    currentUrl = ""
+    for i, (name, url) in enumerate(profile.rooms):
+        if name == rname:
+            roomIndex = i
+            currentUrl = url
+            break
+    if roomIndex < 0:
+        fui.printBuffCmt(f"[-] Room '{rname}' not found", state.screenBuffer)
+        return
+
+    if property.lower() in ("name", "n"):
+        #Rename room
+        if any(name == value for name, _ in profile.rooms):
+            fui.printBuffCmt(f"[-] Room '{rname}' already exists", state.screenBuffer)
+            return
+        #Replace room name in profile.rooms = [(name,url),...]
+        profile.rooms[roomIndex] = (value, currentUrl)
+        fui.printBuffCmt(f"[+] Room '{rname}' renamed to '{value}'", state.screenBuffer)
+    elif property.lower() in ("url", "u"):
+        #Replace room url (can end with anything but if has : then change port too)
+        profile.rooms[roomIndex] = (rname, value)
+        fui.printBuffCmt(f"[+] Updated url for '{rname}' to '{value}'", state.screenBuffer)
+    elif property.lower() in ("port", "p"):
+        #make sure value is valid port
+        if not value.isdigit():
+            fui.printBuffCmt(f"[-] Value '{value}' is not a valid port", state.screenBuffer)
+            return
+        if int(value) > 65535:
+            fui.printBuffCmt(f"[-] Value '{value}' is not a valid port", state.screenBuffer)
+            return
+        #Replace room port (the last part of the (name, url:port) string starting after :)
+        baseUrl = currentUrl.split(':')[0]
+        newUrl = f"{baseUrl}:{value}"
+        profile.rooms[roomIndex] = (rname, newUrl)
+        fui.printBuffCmt(f"[+] Updated url:port for '{rname}' to '{newUrl}'", state.screenBuffer)
+    else:
+        fui.printBuffCmt(f"[i] Usage: room edit {rname} name|url|port <value>", state.screenBuffer)
 def room_remove(nameORurl, profile: Profile, state: State):
     new_rooms = []
     removed = False
@@ -175,7 +221,6 @@ def alias_info(alias_name: str, profile: Profile, state: State):
         fui.printBuff(f"    \033[90mMSG: {msg_perm}", state.screenBuffer)
         fui.printBuff(f"     \033[90mFT: {file_perm}", state.screenBuffer)
 def alias_edit(alias_name: str, property: str, value: str, profile: Profile, state: State):
-
     if alias_name not in profile.aliases:
         fui.printBuffCmt(f"[-] Alias '{alias_name}' not found", state.screenBuffer)
         return
