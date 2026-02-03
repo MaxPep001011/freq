@@ -6,7 +6,7 @@ ptversion = "0.73"
           #          # LEFT OFF: maxMemLimit (anything above will use tmpfiles for recieving)
     #   #####   #    #  anything above memlimit should be written to a tempfile by unpacker in fconn maybe alter handles to take in optional path
   #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both and limit check in unpack
-    #     #     #    #  
+    #     #     #    #  add room edit.
     #           #    #  add bar to show status of sending large files? use fui.writeBuff? also add dir to 'set view active' printout
 
 from fclass import Profile, State
