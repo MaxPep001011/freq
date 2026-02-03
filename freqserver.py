@@ -177,6 +177,7 @@ def main():
         print(" - Reset firewall rules.")
         print(" - Comment out or remove the HiddenServicePort lines you added to torrc.")
         print(" - Restart Tor after cleanup to restore normal behavior.\n")
+        input("--- PRESS ENTER TO EXIT ---")
 
     # Handle Ctrl+C clean exit
     def handle_exit(sig, frame):
