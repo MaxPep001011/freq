@@ -6,9 +6,11 @@ ptversion = "0.73"
           #          # LEFT OFF: maxMemLimit (anything above will use tmpfiles for recieving)
     #   #####   #    #  anything above memlimit should be written to a tempfile by unpacker in fconn maybe alter handles to take in optional path
   #####   #   #####  #  add limit mem <> vs limit msg <> and alter method calls to support changes to both and limit check in unpack
-    #     #     #    #  
+    #     #     #    #  add room edit. add profile switcher and maybe encrypt settings
     #           #    #  add bar to show status of sending large files? use fui.writeBuff? also add dir to 'set view active' printout
-
+#BUGS:
+#   switching profile after loading full profile prevents being able to connect to socks5 <url:port>
+#   
 from fclass import Profile, State
 import fcrypto
 import fcalls
